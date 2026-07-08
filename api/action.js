@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // JSON 파싱 에러 방지 처리
+    // JSON 파싱 에러 방지
     const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     if (credentials.private_key) {
       credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
 
-    // 1. 로그인 (Users 범위 A:G)
+    // 1. 로그인
     if (action === 'verifyLogin') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       const rows = response.data.values || [];
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사님 배차 조회 (호차배정 A:D, 배차리스트 A:K)
+    // 3. 기사님 배차 조회
     if (action === 'getDriverDispatch') {
       const dateObj = new Date(body.targetDate);
       const month = dateObj.getMonth() + 1;
@@ -141,7 +141,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 🌟 5. 사진 업로드 (Photos 구조에 맞춤: 날짜/아이디/이름/차량번호/구분/URL/파일ID)
+    // 5. 사진 업로드
     if (action === 'uploadDashboardPhoto') {
       try {
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
@@ -181,13 +181,16 @@ export default async function handler(req, res) {
         });
         await drive.permissions.create({ fileId: fileRes.data.id, requestBody: { role: 'reader', type: 'anyone' }, supportsAllDrives: true });
         
-        // Photos 구조에 맞춰 차량번호 삽입
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:G', valueInputOption: 'USER_ENTERED',
           requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, fileRes.data.webViewLink, fileRes.data.id ]] }
         });
         return res.status(200).json({ success: true, url: fileRes.data.webViewLink });
       } catch (err) {
+        // 🌟 에러가 'storage quota'인 경우 명확한 한글 가이드 제공
+        if(err.message.includes('storage quota')) {
+          return res.status(200).json({ success: false, message: '드라이브 용량 권한 오류입니다. 기존 구글 드라이브 폴더 공유 설정에서 서비스 계정 이메일을 [편집자]로 추가해주세요.' });
+        }
         return res.status(200).json({ success: false, message: `구글 연동 오류: ${err.message}` });
       }
     }
@@ -215,7 +218,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 8. [관리자] 당일 상세 현황
+    // 8. 당일 상세 현황
     if (action === 'getAdminDailyStatus') {
       const dateObj = new Date(body.targetDate);
       const month = dateObj.getMonth() + 1;
@@ -253,7 +256,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패 (해당 월의 배차 탭을 확인하세요)' }); }
     }
 
-    // 9. [관리자] 월별 통계 분석
+    // 9. 월별 통계 분석
     if (action === 'getAdminMonthlyStats') {
       const monthStr = body.targetMonth;
       const monthNum = parseInt(monthStr.split('-')[1], 10);
@@ -338,7 +341,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '해당 월의 데이터가 없습니다.' }); }
     }
 
-    // 🌟 10. [관리자] 기사 목록 조회 (권한, 이름, 아이디, 전화번호, 비밀번호, 차량번호(row[5]), 첫로그인)
+    // 10. 기사 목록 조회
     if (action === 'getDriverList') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       let drivers = [];
@@ -348,7 +351,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data: drivers });
     }
 
-    // 🌟 11. [관리자] 신규 기사 등록 (A:G 7개 열에 맞춰 삽입)
+    // 11. 신규 기사 등록
     if (action === 'createDriverAccount') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A:G' });
       const cleanPhone = body.phone.replace(/-/g, '');
@@ -359,12 +362,45 @@ export default async function handler(req, res) {
         if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님 혹은 번호입니다.' });
       }
       
-      // Users 시트: [A권한, B이름, C아이디, D전화번호, E비번, F차량번호, G최초로그인]
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID, range: 'Users!A:G', valueInputOption: 'USER_ENTERED',
         requestBody: { values: [['driver', body.name, `'${loginId}`, `'${formatPhone}`, hashPassword('0000'), body.carNumber, 'Y']] }
       });
       return res.status(200).json({ success: true });
+    }
+
+    // 🌟 12. 기사 비밀번호 초기화 (0000)
+    if (action === 'resetDriverPassword') {
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
+      const rows = response.data.values || [];
+      for (let i = 0; i < rows.length; i++) {
+        if (String(rows[i][2]) === String(body.id)) {
+          await sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: `Users!E${i + 1}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[hashPassword('0000')]] } });
+          await sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: `Users!G${i + 1}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [['Y']] } });
+          return res.status(200).json({ success: true });
+        }
+      }
+      return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    // 🌟 13. 기사 계정 삭제 기능
+    if (action === 'deleteDriverAccount') {
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
+      const rows = response.data.values || [];
+      let rowIndex = -1;
+      for (let i = 0; i < rows.length; i++) {
+        if (String(rows[i][2]) === String(body.id)) { rowIndex = i; break; }
+      }
+      if (rowIndex !== -1) {
+        const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+        const sheetId = sheetMeta.data.sheets.find(s => s.properties.title === 'Users').properties.sheetId;
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: SPREADSHEET_ID,
+          requestBody: { requests: [{ deleteDimension: { range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 } } }] }
+        });
+        return res.status(200).json({ success: true });
+      }
+      return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
     return res.status(400).json({ success: false, message: '알 수 없는 요청입니다.' });

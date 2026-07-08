@@ -7,39 +7,51 @@
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
     .container { background: white; padding: 2.5rem 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; }
-    .container.wide { max-width: 800px; }
+    .container.wide { max-width: 1100px; }
+    
     h2 { color: #222; margin-bottom: 0.5rem; font-size: 1.5rem; letter-spacing: -0.5px; }
     p.subtitle { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+    
     .btn-outline { width: 100%; padding: 14px; margin: 8px 0; border-radius: 8px; background-color: transparent; cursor: pointer; font-weight: bold; font-size: 1rem; display: flex; justify-content: center; align-items: center; gap: 8px; transition: background-color 0.2s; }
     .btn-outline.blue { border: 1px solid #1a73e8; color: #1a73e8; }
     .btn-outline.blue:hover { background-color: #f0f4f8; }
     .btn-outline.green { border: 1px solid #188038; color: #188038; }
     .btn-outline.green:hover { background-color: #f1f8f3; }
-    input, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; font-size: 1rem; background-color: white; }
+    
+    input, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; font-size: 1rem; background-color: white; color: #333; }
     input:focus, select:focus { outline: none; border-color: #1a73e8; }
+    label { display: block; text-align: left; font-size: 0.85rem; font-weight: bold; color: #555; margin-top: 10px; }
+    
     .btn-solid { width: 100%; padding: 14px; margin: 16px 0 8px 0; border-radius: 8px; border: none; background-color: #1a73e8; color: white; cursor: pointer; font-weight: bold; font-size: 1rem; }
     .btn-solid:hover { background-color: #1557b0; }
+    
     .back-text { display: block; margin-top: 15px; color: #6b7280; font-size: 0.85rem; text-decoration: underline; cursor: pointer; border: none; background: none; width: 100%; }
+    
     .greeting-container { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-    .role-badge { background-color: #0d6efd; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 4px; letter-spacing: -0.5px; }
+    .role-badge { background-color: #0d6efd; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; }
     .role-badge.driver { background-color: #188038; }
-    .greeting-text { font-size: 1.1rem; color: #333; letter-spacing: -0.5px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
-    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
-    th { background-color: #f8f9fa; color: #555; }
-    .btn-sm { padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; margin-right: 4px; background: white; }
+    .greeting-text { font-size: 1.1rem; color: #333; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85rem; background: white; }
+    th, td { padding: 12px 10px; border: 1px solid #e2e8f0; text-align: center; }
+    th { background-color: #f8f9fa; color: #333; font-weight: bold; }
+    
+    .btn-sm { padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: white; text-decoration: none; color: #333; display: inline-block; margin: 2px; }
+    .btn-sm.view { color: #1a73e8; border-color: #1a73e8; font-weight: bold; }
+    .btn-sm.view:hover { background-color: #e8f0fe; }
     .btn-sm.danger { color: #d93025; border-color: #d93025; }
     .btn-sm.danger:hover { background-color: #fce8e6; }
+    
     .flex-inputs { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
     .flex-inputs input { flex: 1; min-width: 120px; margin: 0; }
     .flex-inputs button { margin: 0; width: 100%; }
-    .photo-history-section { margin-top: 30px; text-align: left; border-top: 2px dashed #eee; padding-top: 20px; }
-    .photo-list { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; max-height: 300px; overflow-y: auto; }
-    .photo-item { display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #eaeaea; }
-    .photo-info { display: flex; flex-direction: column; gap: 4px; }
-    .photo-date { font-size: 0.85rem; color: #666; }
-    .stage-tag { display: inline-block; background-color: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-bottom: 2px; width: fit-content; }
-    .photo-link { font-size: 0.9rem; color: #1a73e8; font-weight: bold; text-decoration: none; }
+
+    /* 📊 2단 대시보드 레이아웃 스타일 설정 */
+    .dashboard-layout { display: flex; gap: 24px; margin-top: 15px; flex-wrap: wrap; text-align: left; }
+    .panel-left { flex: 1; min-width: 280px; background: #fafafa; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; height: fit-content; }
+    .panel-right { flex: 2.5; min-width: 450px; background: white; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+    
+    .table-container { width: 100%; overflow-x: auto; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -71,24 +83,62 @@
     <p id="changePwMsg" style="color:#d93025; font-size: 0.9rem; margin-top: 10px;"></p>
   </div>
 
-  <div id="driverView" class="container hidden">
+  <div id="driverView" class="container wide hidden">
     <div class="greeting-container">
       <span class="role-badge driver">🚙 차량 기사</span>
       <span class="greeting-text"><strong id="driverNameDisplay"></strong>님, 반갑습니다!</span>
     </div>
-    <h2>계기판 사진 업로드</h2>
-    <p class="subtitle">현재 운행 단계를 선택하고 사진을 업로드하세요.</p>
-    <select id="photoStage">
-      <option value="" disabled selected>--- 운행 단계 선택 ---</option>
-      <option value="1.자택 출발">1. 자택 출발</option>
-      <option value="2.센터 입차">2. 센터 입차</option>
-      <option value="3.센터 복귀">3. 센터 복귀</option>
-      <option value="4.집 도착">4. 집 도착</option>
-    </select>
-    <input type="file" id="photoInput" accept="image/*">
-    <button class="btn-solid" style="background-color: #188038;" onclick="uploadPhoto()">사진 업로드 및 전송</button>
-    <p id="uploadMsg" style="font-size: 0.9rem; margin-top: 10px;"></p>
-    <div class="photo-history-section"><h3 style="font-size: 1.1rem; margin: 0; color: #333;">내가 업로드한 기록</h3><div class="photo-list" id="photoListContainer"></div></div>
+
+    <div class="dashboard-layout">
+      <div class="panel-left">
+        <h3 style="margin-top: 0; font-size: 1.1rem; border-bottom: 2px solid #333; padding-bottom: 8px;">운행 기록 등록</h3>
+        
+        <label for="photoDate">📆 운행 일자 선택</label>
+        <input type="date" id="photoDate">
+        
+        <label for="photoStage">📍 운행 단계 선택</label>
+        <select id="photoStage">
+          <option value="" disabled selected>--- 단계 선택 ---</option>
+          <option value="1.자택 출발">1. 자택 출발</option>
+          <option value="2.센터 입차">2. 센터 입차</option>
+          <option value="3.센터 복귀">3. 센터 복귀</option>
+          <option value="4.자택 도착">4. 자택 도착</option>
+        </select>
+        
+        <label for="photoInput">📸 파일 선택</label>
+        <input type="file" id="photoInput" accept="image/*">
+        
+        <button class="btn-solid" style="background-color: #188038; margin-bottom: 0;" onclick="uploadPhoto()">사진 업로드 및 전송</button>
+        <p id="uploadMsg" style="font-size: 0.85rem; margin-top: 10px; text-align: center; font-weight: bold;"></p>
+      </div>
+
+      <div class="panel-right">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #188038; padding-bottom: 8px; flex-wrap: wrap; gap: 10px;">
+          <h3 style="margin: 0; font-size: 1.1rem;">🗓️ 월별 운행 증빙 내역</h3>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 0.85rem; font-weight: bold; white-space: nowrap;">조회 월:</span>
+            <input type="month" id="filterMonth" style="margin: 0; padding: 6px 10px; width: 140px;" onchange="renderPhotoGrid()">
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 110px;">날짜</th>
+                <th>1. 자택 출발</th>
+                <th>2. 센터 입차</th>
+                <th>3. 센터 복귀</th>
+                <th>4. 자택 도착</th>
+              </tr>
+            </thead>
+            <tbody id="gridTableBody">
+              </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
     <button class="back-text" onclick="logout()">로그아웃</button>
   </div>
 
@@ -109,20 +159,29 @@
   </div>
 
   <script>
-    // 🚨 전송받은 고정 웹 앱 고유 URL 적용 완료!
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyiEQBiKc7-DGPQoFEixbC1OMgMZ1fB3nto3D98V-mUXTYbEx9NjMsrM_aqV0rLfebK7Q/exec';
+    let globalPhotosArray = []; // 클라이언트 사이드 캐싱용 배열
 
     function callGasApi(action, data = {}) {
       return fetch(GAS_WEBAPP_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' }, 
         body: JSON.stringify({ action, ...data })
-      }).then(res => res.json());
+      }).then(res => res.json()).catch(err => ({ success: false, error: err.toString() }));
     }
 
-    let selectedLoginRole = '';
-    let tempLoginId = ''; 
-    let tempLoginName = '';
+    // 초기 날짜 값 셋팅 함수 (오늘 및 금월 지정)
+    function initializeDates() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      
+      document.getElementById('photoDate').value = `${yyyy}-${mm}-${dd}`;
+      document.getElementById('filterMonth').value = `${yyyy}-${mm}`;
+    }
+
+    let selectedLoginRole = ''; let tempLoginId = ''; let tempLoginName = '';
 
     function showLoginForm(role) {
       selectedLoginRole = role;
@@ -137,17 +196,14 @@
         document.getElementById('loginSubtitle').innerText = '전화번호 뒷자리(8자)와 비밀번호를 입력하세요.';
         document.getElementById('userId').placeholder = '아이디 (전화번호 뒷 8자리)';
       }
-      document.getElementById('userId').value = '';
-      document.getElementById('userPw').value = '';
-      document.getElementById('loginMsg').innerText = '';
+      document.getElementById('userId').value = ''; document.getElementById('userPw').value = ''; document.getElementById('loginMsg').innerText = '';
     }
 
     function goBackToSelection() { document.getElementById('loginView').classList.add('hidden'); document.getElementById('roleSelectionView').classList.remove('hidden'); }
     function logout() { localStorage.clear(); document.getElementById('driverView').classList.add('hidden'); document.getElementById('adminView').classList.add('hidden'); document.getElementById('roleSelectionView').classList.remove('hidden'); }
 
     function attemptLogin() {
-      const id = document.getElementById('userId').value.trim();
-      const pw = document.getElementById('userPw').value;
+      const id = document.getElementById('userId').value.trim(); const pw = document.getElementById('userPw').value;
       if(!id || !pw) { document.getElementById('loginMsg').innerText = '정보를 모두 입력해 주세요.'; return; }
       document.getElementById('loginMsg').innerText = '확인 중...';
       
@@ -166,8 +222,7 @@
     }
 
     function executePasswordChange() {
-      const newPw = document.getElementById('newPw').value;
-      const newPwConfirm = document.getElementById('newPwConfirm').value;
+      const newPw = document.getElementById('newPw').value; const newPwConfirm = document.getElementById('newPwConfirm').value;
       if(!newPw || !newPwConfirm) { document.getElementById('changePwMsg').innerText = '비밀번호를 입력해 주세요.'; return; }
       if(newPw === '0000') { document.getElementById('changePwMsg').innerText = '초기 비밀번호는 사용할 수 없습니다.'; return; }
       if(newPw !== newPwConfirm) { document.getElementById('changePwMsg').innerText = '비밀번호 확인이 일치하지 않습니다.'; return; }
@@ -185,10 +240,11 @@
     function loginSuccess(id, role, name) {
       localStorage.setItem('currentUser', id); localStorage.setItem('userRole', role); localStorage.setItem('userName', name);
       document.getElementById('loginView').classList.add('hidden');
+      
       if(role === 'driver') {
         document.getElementById('driverNameDisplay').innerText = name;
         document.getElementById('driverView').classList.remove('hidden');
-        document.getElementById('photoStage').selectedIndex = 0;
+        initializeDates();
         loadDriverPhotos(); 
       } else if (role === 'admin') {
         document.getElementById('adminNameDisplay').innerText = name;
@@ -197,49 +253,121 @@
       }
     }
 
+    // 📸 백엔드로부터 온 데이터 검증 가두리 장착 (기록불러오는중 프리징 해결)
     function loadDriverPhotos() {
       const driverId = localStorage.getItem('currentUser');
-      const container = document.getElementById('photoListContainer');
-      container.innerHTML = '<p style="color:#888; font-size:0.9rem;">기록 불러오는 중...</p>';
+      const tbody = document.getElementById('gridTableBody');
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#888;">기록을 안전하게 불러오는 중입니다...</td></tr>';
       
-      callGasApi('getDriverPhotos', { driverId }).then(function(photos) {
-        container.innerHTML = '';
-        if(photos.length === 0) { container.innerHTML = '<p style="color:#888; font-size:0.9rem;">업로드된 사진이 없습니다.</p>'; return; }
-        photos.forEach(function(photo) {
-          const div = document.createElement('div'); div.className = 'photo-item';
-          div.innerHTML = `<div class="photo-info"><span class="stage-tag">${photo.stage}</span><span class="photo-date">${photo.date}</span><a href="${photo.url}" target="_blank" class="photo-link">📄 사진 확인</a></div><button class="btn-sm danger" onclick="deletePhoto('${photo.fileId}')">삭제</button>`;
-          container.appendChild(div);
+      callGasApi('getDriverPhotos', { driverId }).then(function(response) {
+        if(response && response.success) {
+          globalPhotosArray = response.data || []; // 데이터 캐싱
+          renderPhotoGrid();
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" style="color:#d93025;">데이터 조회 실패: 서버 연결 상태를 확인해 주세요.</td></tr>';
+        }
+      });
+    }
+
+    // 🗓️ 월 선택 필터를 반영하여 4대 구간 표(그리드)를 생성하는 핵심 기능
+    function renderPhotoGrid() {
+      const selectedMonth = document.getElementById('filterMonth').value; // 형식: YYYY-MM
+      const tbody = document.getElementById('gridTableBody');
+      tbody.innerHTML = '';
+      
+      if(!selectedMonth) return;
+
+      // 1) 선택된 월에 대응하는 데이터 필터링 및 일자별 그룹핑 체계 가동
+      const gridData = {};
+      globalPhotosArray.forEach(function(photo) {
+        if(photo.dateKey && photo.dateKey.startsWith(selectedMonth)) {
+          if(!gridData[photo.dateKey]) {
+            gridData[photo.dateKey] = {
+              '1.자택 출발': null,
+              '2.센터 입차': null,
+              '3.센터 복귀': null,
+              '4.자택 도착': null
+            };
+          }
+          gridData[photo.dateKey][photo.stage] = photo;
+        }
+      });
+
+      const sortedDates = Object.keys(gridData).sort().reverse(); // 최근 날짜가 위로 오게 정렬
+      
+      if(sortedDates.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#888; padding: 20px;">선택하신 달에 업로드된 내역이 존재하지 않습니다.</td></tr>';
+        return;
+      }
+
+      // 2) 행단위 인터페이스 렌더링 시작
+      sortedDates.forEach(function(date) {
+        const tr = document.createElement('tr');
+        
+        // 날짜 열 생성
+        const tdDate = document.createElement('td');
+        tdDate.innerHTML = `<strong>${date.substring(5)}</strong>`; // MM-DD 가독성 가공
+        tr.appendChild(tdDate);
+        
+        // 4대 단계 매핑 처리
+        const stages = ['1.자택 출발', '2.센터 입차', '3.센터 복귀', '4.자택 도착'];
+        stages.forEach(function(stageName) {
+          const tdStage = document.createElement('td');
+          const pData = gridData[date][stageName];
+          
+          if(pData) {
+            tdStage.innerHTML = `
+              <a href="${pData.url}" target="_blank" class="btn-sm view">사진보기</a>
+              <button class="btn-sm danger" onclick="deletePhoto('${pData.fileId}')">삭제</button>
+            `;
+          } else {
+            tdStage.innerHTML = '<span style="color:#ccc; font-size:0.75rem;">-</span>';
+          }
+          tr.appendChild(tdStage);
         });
+        
+        tbody.appendChild(tr);
       });
     }
 
     function uploadPhoto() {
+      const dateVal = document.getElementById('photoDate').value;
       const stageSelect = document.getElementById('photoStage'); const stage = stageSelect.value;
       const file = document.getElementById('photoInput').files[0]; const driverId = localStorage.getItem('currentUser');
-      if(!stage) { alert('운행 단계를 먼저 선택해주세요.'); return; }
-      if(!file) { alert('사진을 선택해주세요.'); return; }
-      document.getElementById('uploadMsg').innerText = "서버 폴더 분류 및 전송 중...";
+      
+      if(!dateVal) { alert('운행 일자를 선택해 주세요.'); return; }
+      if(!stage) { alert('운행 단계를 선택해 주세요.'); return; }
+      if(!file) { alert('사진 파일을 선택해 주세요.'); return; }
+      
+      document.getElementById('uploadMsg').innerText = "서버 폴더 자동 분류 및 전송 중...";
+      document.getElementById('uploadMsg').style.color = "#1a73e8";
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        callGasApi('uploadDashboardPhoto', { base64Data: e.target.result, fileName: file.name, driverId, stage }).then(function(res) {
+        callGasApi('uploadDashboardPhoto', { base64Data: e.target.result, fileName: file.name, driverId, stage, customDate: dateVal }).then(function(res) {
           if(res.success) {
-            document.getElementById('uploadMsg').innerText = "✅ 업로드 성공!";
-            document.getElementById('photoInput').value = ''; stageSelect.selectedIndex = 0; loadDriverPhotos(); 
-          } else { document.getElementById('uploadMsg').innerText = "오류: " + res.error; }
+            document.getElementById('uploadMsg').innerText = "✅ 기록 등록 및 폴더 분류 성공!";
+            document.getElementById('uploadMsg').style.color = "#188038";
+            document.getElementById('photoInput').value = ''; stageSelect.selectedIndex = 0; 
+            loadDriverPhotos(); // 실시간 표 갱신
+          } else { 
+            document.getElementById('uploadMsg').innerText = "오류: " + res.error; 
+            document.getElementById('uploadMsg').style.color = "#d93025";
+          }
         });
       };
       reader.readAsDataURL(file);
     }
 
     function deletePhoto(fileId) {
-      if(!confirm('이 운행 사진 기록을 삭제하시겠습니까?')) return;
+      if(!confirm('이 운행 기록 사진을 삭제하시겠습니까?\n구글 드라이브와 스프레드시트에서 동시 삭제됩니다.')) return;
       const driverId = localStorage.getItem('currentUser');
       callGasApi('deleteDriverPhoto', { fileId, driverId }).then(function(res) {
         if(res.success) { alert('기록이 삭제되었습니다.'); loadDriverPhotos(); } else { alert('삭제 실패: ' + res.error); }
       });
     }
 
+    /* 관리자 제어단 */
     function loadDriverList() {
       callGasApi('getDriverList').then(function(drivers) {
         const tbody = document.getElementById('driverTableBody'); tbody.innerHTML = '';

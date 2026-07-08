@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 const crypto = require('crypto');
-const stream = require('stream'); // 🌟 Vercel 호환용 업로드 스트림 모듈 추가
+const stream = require('stream');
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
@@ -17,7 +17,8 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    // 환경변수 파싱 시 줄바꿈 오류 방지
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS.replace(/\\n/g, '\n'));
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
@@ -31,7 +32,7 @@ export default async function handler(req, res) {
 
     // 1. 로그인
     if (action === 'verifyLogin') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
       const rows = response.data.values || [];
       const hashedPassword = hashPassword(body.password);
       for (let row of rows) {
@@ -44,11 +45,11 @@ export default async function handler(req, res) {
 
     // 2. 비밀번호 변경
     if (action === 'changePassword') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
       const rows = response.data.values || [];
       const hashedNewPassword = hashPassword(body.newPassword);
       for (let i = 0; i < rows.length; i++) {
-        if (String(row[i][2]) === String(body.id)) {
+        if (String(rows[i][2]) === String(body.id)) {
           await sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: `Users!E${i + 2}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[hashedNewPassword]] } });
           await sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: `Users!G${i + 2}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [['N']] } });
           return res.status(200).json({ success: true });
@@ -57,13 +58,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사님 배차 조회 (undefined 오류 방지)
+    // 3. 기사님 배차 조회
     if (action === 'getDriverDispatch') {
       const dateObj = new Date(body.targetDate);
       const month = dateObj.getMonth() + 1;
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${month}월_호차배정!A2:E`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:H', `${month}월_호차배정!A2:E`, `${month}월_배차리스트!A2:K`],
         });
         const usersData = response.data.valueRanges[0].values || [];
         const assignData = response.data.valueRanges[1].values || [];
@@ -105,7 +106,7 @@ export default async function handler(req, res) {
       const month = dateObj.getMonth() + 1;
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${month}월_호차배정!A2:E`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:H', `${month}월_호차배정!A2:E`, `${month}월_배차리스트!A2:K`],
         });
         const usersData = response.data.valueRanges[0].values || [];
         const assignData = response.data.valueRanges[1].values || [];
@@ -136,10 +137,10 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 5. 🌟 사진 업로드 (500 에러 완벽 해결)
+    // 5. 사진 업로드 (Vercel 최적화)
     if (action === 'uploadDashboardPhoto') {
       try {
-        const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:F' });
+        const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
         let driverName = ''; let vehicleNum = '';
         for(let row of (usersRes.data.values || [])) { if(String(row[2]) === String(body.driverId)) { driverName = row[1]; vehicleNum = row[5]; break; } }
 
@@ -163,11 +164,9 @@ export default async function handler(req, res) {
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
         const newFileName = `${driverName}_${body.stage}_${vehicleNum}_${timeStr}${ext}`;
         
-        // 🌟 Vercel 환경에 최적화된 안전한 버퍼 스트림 생성 방식
         const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
         const buffer = Buffer.from(body.base64Data.split(',')[1], 'base64');
-        const bufferStream = new stream.PassThrough();
-        bufferStream.end(buffer);
+        const bufferStream = stream.Readable.from(buffer); // Vercel 500 에러 해결을 위한 스트림 방식 변경
 
         const fileRes = await drive.files.create({
           requestBody: { name: newFileName, parents: [dayFolderId] }, media: { mimeType: mimeType, body: bufferStream }, fields: 'id, webViewLink', supportsAllDrives: true
@@ -180,7 +179,6 @@ export default async function handler(req, res) {
         });
         return res.status(200).json({ success: true, url: fileRes.data.webViewLink });
       } catch (err) {
-        // 정확한 구글 API 에러 원인을 반환
         return res.status(200).json({ success: false, message: `구글 연동 오류: ${err.message}` });
       }
     }
@@ -208,13 +206,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 🌟 8. [관리자] 당일 상세 현황 (요청하신 지표 반영)
+    // 8. [관리자] 당일 상세 현황
     if (action === 'getAdminDailyStatus') {
       const dateObj = new Date(body.targetDate);
       const month = dateObj.getMonth() + 1;
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:F', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:H', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
         });
         const users = response.data.valueRanges[0].values || [];
         const assign = response.data.valueRanges[1].values || [];
@@ -222,7 +220,7 @@ export default async function handler(req, res) {
         
         const dateString = body.targetDate.substring(0, 10);
         let dailyList = [];
-        let activeVehicles = new Set(); // 금일 가동 호차 수 계산용
+        let activeVehicles = new Set();
 
         for (let row of dispatch) {
           if(!row[0] || String(row[0]).substring(0, 10) !== dateString) continue;
@@ -237,7 +235,6 @@ export default async function handler(req, res) {
               break;
             }
           }
-          // 요청사항: clientAddr(배송지 주소)는 제외하고 clientName만 전달
           dailyList.push({
             vehicle: vehicle, driverName: driverName, driverPhone: driverPhone,
             clientName: row[3], arrivalTime: row[10] || ""
@@ -247,7 +244,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패 (해당 월의 배차 탭을 확인하세요)' }); }
     }
 
-    // 🌟 9. [관리자] 월별 통계 분석 (신규 분석 기능)
+    // 9. [관리자] 월별 통계 분석 (심층 데이터 - 대시보드용)
     if (action === 'getAdminMonthlyStats') {
       const monthStr = body.targetMonth; // ex: "2026-07"
       const monthNum = parseInt(monthStr.split('-')[1], 10);
@@ -256,55 +253,112 @@ export default async function handler(req, res) {
           spreadsheetId: SPREADSHEET_ID, range: `${monthNum}월_배차리스트!A2:K`,
         });
         const dispatch = response.data.values || [];
-        let statsObj = {};
+        
+        let statsObj = {}; // 일자별 통계
+        let hospitalStats = {}; // 병원(거래처)별 통계
+        let vehicleStats = {}; // 호차별 통계
+
+        // 시간 계산 유틸리티
+        const timeToMins = (timeStr) => {
+          if(!timeStr || !timeStr.includes(':')) return 0;
+          const [h, m] = timeStr.split(':');
+          return parseInt(h)*60 + parseInt(m);
+        };
 
         for (let row of dispatch) {
           if(!row[0]) continue;
           let dateKey = String(row[0]).substring(0, 10);
-          if(!dateKey.startsWith(monthStr)) continue; // 해당 월만 필터링
+          if(!dateKey.startsWith(monthStr)) continue;
           
-          if(!statsObj[dateKey]) {
-            statsObj[dateKey] = { date: dateKey, vehicles: new Set(), total: 0, done: 0 };
-          }
-          statsObj[dateKey].vehicles.add(String(row[1]));
+          let vehicle = String(row[1] || '미정');
+          let client = String(row[3] || '알수없음');
+          let arrTime = row[10] || null;
+
+          // 1. 일자별 현황
+          if(!statsObj[dateKey]) statsObj[dateKey] = { date: dateKey, vehicles: new Set(), total: 0, done: 0 };
+          statsObj[dateKey].vehicles.add(vehicle);
           statsObj[dateKey].total++;
-          if(row[10]) statsObj[dateKey].done++;
+          if(arrTime) statsObj[dateKey].done++;
+
+          // 2. 병원(거래처)별 배송 빈도 및 시간
+          if(!hospitalStats[client]) hospitalStats[client] = { count: 0, arrTimes: [] };
+          hospitalStats[client].count++;
+          if(arrTime) hospitalStats[client].arrTimes.push(timeToMins(arrTime));
+
+          // 3. 호차별 운행 이력
+          if(!vehicleStats[vehicle]) vehicleStats[vehicle] = { count: 0, clients: new Set(), endTimes: [] };
+          vehicleStats[vehicle].count++;
+          vehicleStats[vehicle].clients.add(client);
+          if(arrTime) vehicleStats[vehicle].endTimes.push({ date: dateKey, time: timeToMins(arrTime) });
         }
 
-        // Set을 숫자로 변환하여 배열로 만들기
         let statsArray = Object.keys(statsObj).map(date => ({
-          date: date,
-          vehicleCount: statsObj[date].vehicles.size,
-          totalCount: statsObj[date].total,
-          doneCount: statsObj[date].done,
-          missingCount: statsObj[date].total - statsObj[date].done
+          date: date, vehicleCount: statsObj[date].vehicles.size, totalCount: statsObj[date].total,
+          doneCount: statsObj[date].done, missingCount: statsObj[date].total - statsObj[date].done
         })).sort((a, b) => a.date.localeCompare(b.date));
 
-        return res.status(200).json({ success: true, data: statsArray });
+        // 호차별 평균 종료 시간 계산 (해당 호차의 각 일자별 가장 늦은 도착시간의 평균)
+        let vStatsOut = [];
+        for(let v in vehicleStats) {
+           let endTimesByDate = {};
+           vehicleStats[v].endTimes.forEach(et => {
+             if(!endTimesByDate[et.date] || endTimesByDate[et.date] < et.time) endTimesByDate[et.date] = et.time;
+           });
+           let totalMins = 0; let dayCount = 0;
+           for(let d in endTimesByDate) { totalMins += endTimesByDate[d]; dayCount++; }
+           let avgStr = "-";
+           if(dayCount > 0) {
+             let avgMin = Math.floor(totalMins / dayCount);
+             avgStr = `${String(Math.floor(avgMin/60)).padStart(2,'0')}:${String(avgMin%60).padStart(2,'0')}`;
+           }
+           vStatsOut.push({ vehicle: v, clientCount: vehicleStats[v].clients.size, totalDeliveries: vehicleStats[v].count, avgEndTime: avgStr });
+        }
+
+        // 병원별 평균 도착 시간 및 횟수
+        let hStatsOut = Object.keys(hospitalStats).map(h => {
+           let totalMins = hospitalStats[h].arrTimes.reduce((acc, val) => acc + val, 0);
+           let arrCount = hospitalStats[h].arrTimes.length;
+           let avgStr = "-";
+           if(arrCount > 0) {
+             let avgMin = Math.floor(totalMins / arrCount);
+             avgStr = `${String(Math.floor(avgMin/60)).padStart(2,'0')}:${String(avgMin%60).padStart(2,'0')}`;
+           }
+           return { hospital: h, count: hospitalStats[h].count, avgTime: avgStr };
+        }).sort((a,b) => b.count - a.count); // 횟수 내림차순
+
+        return res.status(200).json({ 
+          success: true, 
+          data: statsArray,          // 기존 일자별 테이블용
+          hospitalData: hStatsOut,   // 병원별 데이터 (차트용)
+          vehicleData: vStatsOut     // 호차별 데이터 (차트용)
+        });
       } catch (err) { return res.status(200).json({ success: false, message: '해당 월의 데이터가 없습니다.' }); }
     }
 
     // 10. [관리자] 기사 목록 조회
     if (action === 'getDriverList') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
       let drivers = [];
       for (let row of (response.data.values || [])) {
-        if (row[0] === 'driver') drivers.push({ name: row[1], id: String(row[2]), phone: row[3], vehicle: row[5], isFirst: row[6] });
+        if (row[0] === 'driver') drivers.push({ name: row[1], id: String(row[2]), phone: row[3], vehicle: row[5], carNumber: row[7] || '미등록', isFirst: row[6] });
       }
       return res.status(200).json({ success: true, data: drivers });
     }
 
-    // 11. [관리자] 신규 기사 등록
+    // 11. [관리자] 신규 기사 등록 (호차/차량번호 분리 저장)
     if (action === 'createDriverAccount') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A:D' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A:H' });
       const cleanPhone = body.phone.replace(/-/g, '');
+      const formatPhone = cleanPhone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, `$1-$2-$3`); // 안전한 하이픈 포맷 적용
       let loginId = cleanPhone.startsWith('010') ? cleanPhone.substring(3) : cleanPhone;
+      
       for (let row of (response.data.values || [])) {
-        if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님입니다.' });
+        if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님 혹은 번호입니다.' });
       }
+      
       await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID, range: 'Users!A:G', valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [['driver', body.name, `'${loginId}`, `'${cleanPhone}`, hashPassword('0000'), body.vehicle, 'Y']] }
+        spreadsheetId: SPREADSHEET_ID, range: 'Users!A:H', valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [['driver', body.name, `'${loginId}`, `'${formatPhone}`, hashPassword('0000'), body.vehicle, 'Y', body.carNumber]] }
       });
       return res.status(200).json({ success: true });
     }

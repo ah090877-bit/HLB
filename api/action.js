@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 const crypto = require('crypto');
-const stream = require('stream'); // 🌟 원본 코드로 복구 완료
+const stream = require('stream'); 
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
@@ -17,10 +17,22 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // JSON 파싱 에러 방지
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-    if (credentials.private_key) {
-      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    // 🌟 핵심 에러 해결 구간: Vercel 줄바꿈 제어문자(Bad control character) 완벽 차단
+    let credentials;
+    try {
+      let rawCreds = process.env.GOOGLE_CREDENTIALS || '{}';
+      // 1. 실제 엔터(\n)를 문자열 '\\n'으로 치환하여 JSON 파싱이 안 깨지게 만듦
+      rawCreds = rawCreds.replace(/\n/g, '\\n').replace(/\r/g, ''); 
+      
+      // 2. 안전하게 객체로 파싱
+      credentials = JSON.parse(rawCreds); 
+      
+      // 3. 구글 인증 라이브러리가 인식할 수 있도록 private_key 부분만 다시 실제 줄바꿈으로 복구
+      if (credentials.private_key) {
+        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+      }
+    } catch (parseErr) {
+      return res.status(200).json({ success: false, message: '구글 인증키 설정 오류: 환경변수를 다시 확인해주세요.' });
     }
 
     const auth = new google.auth.GoogleAuth({
@@ -141,7 +153,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 🌟 5. 사진 업로드 (잘 작동하던 원본 PassThrough 스트림 로직으로 완벽 복구)
+    // 5. 사진 업로드 (잘 작동하던 원본 PassThrough 방식으로 복구 완료)
     if (action === 'uploadDashboardPhoto') {
       try {
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
@@ -172,7 +184,6 @@ export default async function handler(req, res) {
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
         const newFileName = `${driverName}_${body.stage}_${carNum}_${timeStr}${ext}`;
         
-        // 🌟 여기가 에러의 원인이었던 부분입니다! 작동하던 원래 코드로 되돌렸습니다.
         const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
         const buffer = Buffer.from(body.base64Data.split(',')[1], 'base64');
         const bufferStream = new stream.PassThrough();
@@ -189,7 +200,7 @@ export default async function handler(req, res) {
         });
         return res.status(200).json({ success: true, url: fileRes.data.webViewLink });
       } catch (err) {
-        return res.status(200).json({ success: false, message: `구글 연동 오류: ${err.message}` });
+        return res.status(200).json({ success: false, message: `구글 드라이브 연동 오류: ${err.message}` });
       }
     }
 

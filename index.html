@@ -109,14 +109,13 @@
   </div>
 
   <script>
-    // 🚨 여기에 1단계에서 복사한 구글 앱스 스크립트 배포 주소를 넣으세요!
-    const GAS_WEBAPP_URL = '여기에_진짜_exec_웹앱_주소를_넣으세요';
+    // 🚨 전송받은 고정 웹 앱 고유 URL 적용 완료!
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyiEQBiKc7-DGPQoFEixbC1OMgMZ1fB3nto3D98V-mUXTYbEx9NjMsrM_aqV0rLfebK7Q/exec';
 
-    // 깃허브와 구글 시트를 안전하게 잇는 다리 통신 함수 (CORS 우회 우회)
     function callGasApi(action, data = {}) {
       return fetch(GAS_WEBAPP_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' }, // 프리플라이트 차단용 text/plain 설정
+        headers: { 'Content-Type': 'text/plain' }, 
         body: JSON.stringify({ action, ...data })
       }).then(res => res.json());
     }

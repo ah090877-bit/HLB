@@ -1,6 +1,6 @@
 const { google } = require('googleapis');
 const crypto = require('crypto');
-const stream = require('stream');
+const stream = require('stream'); // 🌟 원본 코드로 복구 완료
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
@@ -141,7 +141,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 5. 사진 업로드
+    // 🌟 5. 사진 업로드 (잘 작동하던 원본 PassThrough 스트림 로직으로 완벽 복구)
     if (action === 'uploadDashboardPhoto') {
       try {
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
@@ -172,9 +172,11 @@ export default async function handler(req, res) {
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
         const newFileName = `${driverName}_${body.stage}_${carNum}_${timeStr}${ext}`;
         
+        // 🌟 여기가 에러의 원인이었던 부분입니다! 작동하던 원래 코드로 되돌렸습니다.
         const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
         const buffer = Buffer.from(body.base64Data.split(',')[1], 'base64');
-        const bufferStream = stream.Readable.from(buffer);
+        const bufferStream = new stream.PassThrough();
+        bufferStream.end(buffer);
 
         const fileRes = await drive.files.create({
           requestBody: { name: newFileName, parents: [dayFolderId] }, media: { mimeType: mimeType, body: bufferStream }, fields: 'id, webViewLink', supportsAllDrives: true
@@ -187,10 +189,6 @@ export default async function handler(req, res) {
         });
         return res.status(200).json({ success: true, url: fileRes.data.webViewLink });
       } catch (err) {
-        // 🌟 에러가 'storage quota'인 경우 명확한 한글 가이드 제공
-        if(err.message.includes('storage quota')) {
-          return res.status(200).json({ success: false, message: '드라이브 용량 권한 오류입니다. 기존 구글 드라이브 폴더 공유 설정에서 서비스 계정 이메일을 [편집자]로 추가해주세요.' });
-        }
         return res.status(200).json({ success: false, message: `구글 연동 오류: ${err.message}` });
       }
     }
@@ -369,7 +367,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 🌟 12. 기사 비밀번호 초기화 (0000)
+    // 12. 기사 비밀번호 초기화
     if (action === 'resetDriverPassword') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
       const rows = response.data.values || [];
@@ -383,7 +381,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 🌟 13. 기사 계정 삭제 기능
+    // 13. 기사 계정 삭제
     if (action === 'deleteDriverAccount') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
       const rows = response.data.values || [];

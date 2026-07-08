@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>운행 관제 시스템</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+    .container { background: white; padding: 2.5rem 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; }
+    .container.wide { max-width: 800px; }
+    h2 { color: #222; margin-bottom: 0.5rem; font-size: 1.5rem; letter-spacing: -0.5px; }
+    p.subtitle { color: #6b7280; font-size: 0.9rem; margin-bottom: 2rem; }
+    .btn-outline { width: 100%; padding: 14px; margin: 8px 0; border-radius: 8px; background-color: transparent; cursor: pointer; font-weight: bold; font-size: 1rem; display: flex; justify-content: center; align-items: center; gap: 8px; transition: background-color 0.2s; }
+    .btn-outline.blue { border: 1px solid #1a73e8; color: #1a73e8; }
+    .btn-outline.blue:hover { background-color: #f0f4f8; }
+    .btn-outline.green { border: 1px solid #188038; color: #188038; }
+    .btn-outline.green:hover { background-color: #f1f8f3; }
+    input, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; font-size: 1rem; background-color: white; }
+    input:focus, select:focus { outline: none; border-color: #1a73e8; }
+    .btn-solid { width: 100%; padding: 14px; margin: 16px 0 8px 0; border-radius: 8px; border: none; background-color: #1a73e8; color: white; cursor: pointer; font-weight: bold; font-size: 1rem; }
+    .btn-solid:hover { background-color: #1557b0; }
+    .back-text { display: block; margin-top: 15px; color: #6b7280; font-size: 0.85rem; text-decoration: underline; cursor: pointer; border: none; background: none; width: 100%; }
+    .greeting-container { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+    .role-badge { background-color: #0d6efd; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center; gap: 4px; letter-spacing: -0.5px; }
+    .role-badge.driver { background-color: #188038; }
+    .greeting-text { font-size: 1.1rem; color: #333; letter-spacing: -0.5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+    th { background-color: #f8f9fa; color: #555; }
+    .btn-sm { padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; margin-right: 4px; background: white; }
+    .btn-sm.danger { color: #d93025; border-color: #d93025; }
+    .btn-sm.danger:hover { background-color: #fce8e6; }
+    .flex-inputs { display: flex; gap: 8px; margin-top: 15px; flex-wrap: wrap; }
+    .flex-inputs input { flex: 1; min-width: 120px; margin: 0; }
+    .flex-inputs button { margin: 0; width: 100%; }
+    .photo-history-section { margin-top: 30px; text-align: left; border-top: 2px dashed #eee; padding-top: 20px; }
+    .photo-list { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; max-height: 300px; overflow-y: auto; }
+    .photo-item { display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; padding: 10px; border-radius: 8px; border: 1px solid #eaeaea; }
+    .photo-info { display: flex; flex-direction: column; gap: 4px; }
+    .photo-date { font-size: 0.85rem; color: #666; }
+    .stage-tag { display: inline-block; background-color: #e8f0fe; color: #1a73e8; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-bottom: 2px; width: fit-content; }
+    .photo-link { font-size: 0.9rem; color: #1a73e8; font-weight: bold; text-decoration: none; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <div id="roleSelectionView" class="container">
+    <h2>운행 관제 시스템</h2>
+    <p class="subtitle">접속하실 계정 유형을 선택해 주세요.</p>
+    <button class="btn-outline blue" onclick="showLoginForm('admin')">관리자 / 매니저 로그인</button>
+    <button class="btn-outline green" onclick="showLoginForm('driver')">차량 기사님 로그인</button>
+  </div>
+
+  <div id="loginView" class="container hidden">
+    <h2 id="loginTitle">로그인</h2>
+    <p class="subtitle" id="loginSubtitle">아이디와 비밀번호를 입력해 주세요.</p>
+    <input type="text" id="userId" placeholder="아이디" required>
+    <input type="password" id="userPw" placeholder="비밀번호" required>
+    <button class="btn-solid" onclick="attemptLogin()">접속하기</button>
+    <p id="loginMsg" style="color:#d93025; font-size: 0.9rem; margin-top: 10px;"></p>
+    <button class="back-text" onclick="goBackToSelection()">← 계정 유형 다시 선택하기</button>
+  </div>
+
+  <div id="changePwView" class="container hidden">
+    <h2>🔒 비밀번호 변경 안내</h2>
+    <p class="subtitle" style="color: #d93025;">최초 로그인 시 안전을 위해 비밀번호를 변경해야 합니다.</p>
+    <input type="password" id="newPw" placeholder="새로운 비밀번호 입력" required>
+    <input type="password" id="newPwConfirm" placeholder="새로운 비밀번호 확인" required>
+    <button class="btn-solid" onclick="executePasswordChange()">비밀번호 변경 후 접속</button>
+    <p id="changePwMsg" style="color:#d93025; font-size: 0.9rem; margin-top: 10px;"></p>
+  </div>
+
+  <div id="driverView" class="container hidden">
+    <div class="greeting-container">
+      <span class="role-badge driver">🚙 차량 기사</span>
+      <span class="greeting-text"><strong id="driverNameDisplay"></strong>님, 반갑습니다!</span>
+    </div>
+    <h2>계기판 사진 업로드</h2>
+    <p class="subtitle">현재 운행 단계를 선택하고 사진을 업로드하세요.</p>
+    <select id="photoStage">
+      <option value="" disabled selected>--- 운행 단계 선택 ---</option>
+      <option value="1.자택 출발">1. 자택 출발</option>
+      <option value="2.센터 입차">2. 센터 입차</option>
+      <option value="3.센터 복귀">3. 센터 복귀</option>
+      <option value="4.집 도착">4. 집 도착</option>
+    </select>
+    <input type="file" id="photoInput" accept="image/*">
+    <button class="btn-solid" style="background-color: #188038;" onclick="uploadPhoto()">사진 업로드 및 전송</button>
+    <p id="uploadMsg" style="font-size: 0.9rem; margin-top: 10px;"></p>
+    <div class="photo-history-section"><h3 style="font-size: 1.1rem; margin: 0; color: #333;">내가 업로드한 기록</h3><div class="photo-list" id="photoListContainer"></div></div>
+    <button class="back-text" onclick="logout()">로그아웃</button>
+  </div>
+
+  <div id="adminView" class="container wide hidden">
+    <div class="greeting-container"><span class="role-badge">⭐ 최고관리자</span><span class="greeting-text"><strong id="adminNameDisplay"></strong>님, 반갑습니다!</span></div>
+    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+      <h3 style="margin-top:0; font-size: 1.1rem; text-align: left;">신규 기사 등록</h3>
+      <div class="flex-inputs">
+        <input type="text" id="newName" placeholder="이름 (예: 홍길동)">
+        <input type="text" id="newPhone" placeholder="전화번호 전체 (예: 01012345678)">
+        <input type="text" id="newVehicle" placeholder="차량번호 (예: 12가3456)">
+      </div>
+      <button class="btn-solid" style="margin-top: 10px;" onclick="addDriver()">기사 계정 생성 (초기비번 0000)</button>
+      <p id="adminActionMsg" style="font-size: 0.9rem; color: #1a73e8; text-align: left; margin: 5px 0;"></p>
+    </div>
+    <table><thead><tr><th>이름</th><th>아이디</th><th>전화번호</th><th>차량번호</th><th>최초비번 변경</th><th>관리 작업</th></tr></thead><tbody id="driverTableBody"></tbody></table>
+    <button class="back-text" onclick="logout()">로그아웃</button>
+  </div>
+
+  <script>
+    // 🚨 여기에 1단계에서 복사한 구글 앱스 스크립트 배포 주소를 넣으세요!
+    const GAS_WEBAPP_URL = '여기에_진짜_exec_웹앱_주소를_넣으세요';
+
+    // 깃허브와 구글 시트를 안전하게 잇는 다리 통신 함수 (CORS 우회 우회)
+    function callGasApi(action, data = {}) {
+      return fetch(GAS_WEBAPP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' }, // 프리플라이트 차단용 text/plain 설정
+        body: JSON.stringify({ action, ...data })
+      }).then(res => res.json());
+    }
+
+    let selectedLoginRole = '';
+    let tempLoginId = ''; 
+    let tempLoginName = '';
+
+    function showLoginForm(role) {
+      selectedLoginRole = role;
+      document.getElementById('roleSelectionView').classList.add('hidden');
+      document.getElementById('loginView').classList.remove('hidden');
+      if (role === 'admin') {
+        document.getElementById('loginTitle').innerText = '관리자 / 매니저 로그인';
+        document.getElementById('loginSubtitle').innerText = '아이디를 입력해 주세요.';
+        document.getElementById('userId').placeholder = '아이디';
+      } else {
+        document.getElementById('loginTitle').innerText = '차량 기사님 로그인';
+        document.getElementById('loginSubtitle').innerText = '전화번호 뒷자리(8자)와 비밀번호를 입력하세요.';
+        document.getElementById('userId').placeholder = '아이디 (전화번호 뒷 8자리)';
+      }
+      document.getElementById('userId').value = '';
+      document.getElementById('userPw').value = '';
+      document.getElementById('loginMsg').innerText = '';
+    }
+
+    function goBackToSelection() { document.getElementById('loginView').classList.add('hidden'); document.getElementById('roleSelectionView').classList.remove('hidden'); }
+    function logout() { localStorage.clear(); document.getElementById('driverView').classList.add('hidden'); document.getElementById('adminView').classList.add('hidden'); document.getElementById('roleSelectionView').classList.remove('hidden'); }
+
+    function attemptLogin() {
+      const id = document.getElementById('userId').value.trim();
+      const pw = document.getElementById('userPw').value;
+      if(!id || !pw) { document.getElementById('loginMsg').innerText = '정보를 모두 입력해 주세요.'; return; }
+      document.getElementById('loginMsg').innerText = '확인 중...';
+      
+      callGasApi('verifyLogin', { id, password: pw }).then(function(response) {
+        if(response.success) {
+          if(selectedLoginRole !== response.role) { document.getElementById('loginMsg').innerText = '선택한 계정 유형과 권한이 일치하지 않습니다.'; return; }
+          if(response.isFirstLogin) {
+            tempLoginId = id; tempLoginName = response.name;
+            document.getElementById('loginView').classList.add('hidden');
+            document.getElementById('changePwView').classList.remove('hidden');
+            return;
+          }
+          loginSuccess(id, response.role, response.name);
+        } else { document.getElementById('loginMsg').innerText = response.message; }
+      });
+    }
+
+    function executePasswordChange() {
+      const newPw = document.getElementById('newPw').value;
+      const newPwConfirm = document.getElementById('newPwConfirm').value;
+      if(!newPw || !newPwConfirm) { document.getElementById('changePwMsg').innerText = '비밀번호를 입력해 주세요.'; return; }
+      if(newPw === '0000') { document.getElementById('changePwMsg').innerText = '초기 비밀번호는 사용할 수 없습니다.'; return; }
+      if(newPw !== newPwConfirm) { document.getElementById('changePwMsg').innerText = '비밀번호 확인이 일치하지 않습니다.'; return; }
+      document.getElementById('changePwMsg').innerText = '비밀번호 변경 및 보안 적용 중...';
+
+      callGasApi('changePassword', { id: tempLoginId, newPassword: newPw }).then(function(res) {
+        if(res.success) {
+          alert('비밀번호가 안전하게 변경되었습니다. 시스템에 접속합니다.');
+          document.getElementById('changePwView').classList.add('hidden');
+          loginSuccess(tempLoginId, 'driver', tempLoginName);
+        } else { document.getElementById('changePwMsg').innerText = res.message; }
+      });
+    }
+
+    function loginSuccess(id, role, name) {
+      localStorage.setItem('currentUser', id); localStorage.setItem('userRole', role); localStorage.setItem('userName', name);
+      document.getElementById('loginView').classList.add('hidden');
+      if(role === 'driver') {
+        document.getElementById('driverNameDisplay').innerText = name;
+        document.getElementById('driverView').classList.remove('hidden');
+        document.getElementById('photoStage').selectedIndex = 0;
+        loadDriverPhotos(); 
+      } else if (role === 'admin') {
+        document.getElementById('adminNameDisplay').innerText = name;
+        document.getElementById('adminView').classList.remove('hidden');
+        loadDriverList(); 
+      }
+    }
+
+    function loadDriverPhotos() {
+      const driverId = localStorage.getItem('currentUser');
+      const container = document.getElementById('photoListContainer');
+      container.innerHTML = '<p style="color:#888; font-size:0.9rem;">기록 불러오는 중...</p>';
+      
+      callGasApi('getDriverPhotos', { driverId }).then(function(photos) {
+        container.innerHTML = '';
+        if(photos.length === 0) { container.innerHTML = '<p style="color:#888; font-size:0.9rem;">업로드된 사진이 없습니다.</p>'; return; }
+        photos.forEach(function(photo) {
+          const div = document.createElement('div'); div.className = 'photo-item';
+          div.innerHTML = `<div class="photo-info"><span class="stage-tag">${photo.stage}</span><span class="photo-date">${photo.date}</span><a href="${photo.url}" target="_blank" class="photo-link">📄 사진 확인</a></div><button class="btn-sm danger" onclick="deletePhoto('${photo.fileId}')">삭제</button>`;
+          container.appendChild(div);
+        });
+      });
+    }
+
+    function uploadPhoto() {
+      const stageSelect = document.getElementById('photoStage'); const stage = stageSelect.value;
+      const file = document.getElementById('photoInput').files[0]; const driverId = localStorage.getItem('currentUser');
+      if(!stage) { alert('운행 단계를 먼저 선택해주세요.'); return; }
+      if(!file) { alert('사진을 선택해주세요.'); return; }
+      document.getElementById('uploadMsg').innerText = "서버 폴더 분류 및 전송 중...";
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        callGasApi('uploadDashboardPhoto', { base64Data: e.target.result, fileName: file.name, driverId, stage }).then(function(res) {
+          if(res.success) {
+            document.getElementById('uploadMsg').innerText = "✅ 업로드 성공!";
+            document.getElementById('photoInput').value = ''; stageSelect.selectedIndex = 0; loadDriverPhotos(); 
+          } else { document.getElementById('uploadMsg').innerText = "오류: " + res.error; }
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function deletePhoto(fileId) {
+      if(!confirm('이 운행 사진 기록을 삭제하시겠습니까?')) return;
+      const driverId = localStorage.getItem('currentUser');
+      callGasApi('deleteDriverPhoto', { fileId, driverId }).then(function(res) {
+        if(res.success) { alert('기록이 삭제되었습니다.'); loadDriverPhotos(); } else { alert('삭제 실패: ' + res.error); }
+      });
+    }
+
+    function loadDriverList() {
+      callGasApi('getDriverList').then(function(drivers) {
+        const tbody = document.getElementById('driverTableBody'); tbody.innerHTML = '';
+        drivers.forEach(function(driver) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td><strong>${driver.name}</strong></td><td style="color:#1a73e8; font-weight:bold;">${driver.id}</td><td>${driver.phone}</td><td>${driver.vehicle}</td><td>${driver.isFirst === 'Y' ? '<span style="color:#d93025">미변경</span>' : '<span style="color:#188038">변경완료</span>'}</td><td><button class="btn-sm" onclick="resetPassword('${driver.id}')">비번초기화</button><button class="btn-sm danger" onclick="deleteDriver('${driver.id}')">삭제</button></td>`;
+          tbody.appendChild(tr);
+        });
+      });
+    }
+
+    function addDriver() {
+      const name = document.getElementById('newName').value.trim(); const phone = document.getElementById('newPhone').value.trim(); const vehicle = document.getElementById('newVehicle').value.trim();
+      if(!name || !phone || !vehicle) { document.getElementById('adminActionMsg').innerText = '정보를 모두 입력해주세요.'; return; }
+      document.getElementById('adminActionMsg').innerText = '생성 중...';
+      
+      callGasApi('createDriverAccount', { name, phone, vehicle }).then(function(res) {
+        if(res.success) {
+          document.getElementById('adminActionMsg').innerText = '계정이 생성되었습니다.';
+          document.getElementById('newName').value = ''; document.getElementById('newPhone').value = ''; document.getElementById('newVehicle').value = ''; loadDriverList();
+        } else { document.getElementById('adminActionMsg').innerText = res.message; }
+      });
+    }
+
+    function deleteDriver(id) {
+      if(!confirm('해당 기사 계정을 정말 삭제하시겠습니까?')) return;
+      callGasApi('deleteDriverAccount', { id }).then(function() { document.getElementById('adminActionMsg').innerText = '계정이 삭제되었습니다.'; loadDriverList(); });
+    }
+
+    function resetPassword(id) {
+      if(!confirm('해당 기사의 비밀번호를 초기화하시겠습니까?')) return;
+      callGasApi('resetDriverPassword', { id }).then(function() { document.getElementById('adminActionMsg').innerText = '비밀번호가 초기화되었습니다.'; loadDriverList(); });
+    }
+  </script>
+</body>
+</html>

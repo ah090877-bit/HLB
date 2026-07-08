@@ -54,7 +54,7 @@
     .meta-label.qty { background-color: #fef3c7; color: #b45309; }   
     
     .meta-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: #334155; }
-    .meta-value.eng-num { font-weight: 600; letter-spacing: 0.5px; } /* 영문/숫자 전용 스타일 강조 */
+    .meta-value.eng-num { font-weight: 600; letter-spacing: 0.5px; } 
     
     .card-action { flex-shrink: 0; min-width: 90px; text-align: right; }
     .btn-arrival { background-color: #1a73e8; color: white; border: none; padding: 9px 11px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
@@ -172,28 +172,51 @@
   </div>
 
   <script>
+    // 🚨 반드시 본인의 앱스 스크립트 '새 배포' URL로 변경해 주세요!
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyiEQBiKc7-DGPQoFEixbC1OMgMZ1fB3nto3D98V-mUXTYbEx9NjMsrM_aqV0rLfebK7Q/exec';
     
-    // 🌟 [속도 개선] 지연 로딩을 위한 캐시 상태 변수
     let globalPhotosArray = []; 
     let isPhotosLoaded = false;
+    let selectedLoginRole = '';
+    let tempLoginId = '';
+    let tempLoginName = '';
 
+    // 🌟 1. 통신 안정화 및 에러 핸들링 보강
     function callGasApi(action, data = {}) {
       return fetch(GAS_WEBAPP_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' }, 
-        body: JSON.stringify({ action, ...data })
-      }).then(res => res.json()).catch(err => ({ success: false, error: err.toString() }));
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ action, ...data }),
+        redirect: 'follow'
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("서버 응답 오류 (상태 코드: " + res.status + ")");
+        return res.text();
+      })
+      .then(text => {
+        try {
+          const jsonResponse = JSON.parse(text);
+          if (!jsonResponse.success && jsonResponse.stack) {
+            console.error("GAS 백엔드 에러 상세:", jsonResponse.stack);
+          }
+          return jsonResponse;
+        } catch (e) {
+          console.error("서버에서 JSON이 아닌 데이터를 반환했습니다:", text);
+          throw new Error("서버 설정 오류(배포 URL 확인 필요) 또는 내부 오류 발생");
+        }
+      })
+      .catch(err => {
+        console.error("API 호출 실패:", err);
+        return { success: false, error: err.toString() };
+      });
     }
 
-    // 🌟 [속도 개선] 탭을 이동할 때만 데이터를 조회하도록 로직 변경
     function switchTab(tabName) {
       document.querySelectorAll('.tab-content').forEach(p => p.classList.add('hidden'));
       document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
       document.getElementById('pane_' + tabName).classList.remove('hidden');
       document.getElementById('tabBtn_' + tabName).classList.add('active');
 
-      // 월별 내역 탭을 눌렀는데, 아직 데이터를 안 불러왔다면 그때서야 구글 서버에 요청!
       if (tabName === 'history' && !isPhotosLoaded) {
         loadDriverPhotos();
       }
@@ -234,15 +257,13 @@
       const mDate = document.getElementById('masterDate').value;
       if(mDate) {
         document.getElementById('filterMonth').value = mDate.substring(0, 7);
-        isPhotosLoaded = false; // 날짜가 바뀌면 사진 캐시 무효화
+        isPhotosLoaded = false; 
         
-        loadDispatchList(); // 첫 화면인 배차만 먼저 불러옴
+        loadDispatchList(); 
         
-        // 만약 현재 월별 내역 탭을 보고 있다면 즉시 사진 데이터도 리로드
         if(document.getElementById('tabBtn_history').classList.contains('active')) {
           loadDriverPhotos();
         } else {
-          // 안 보고 있으면 표 비워두기 (나중에 탭 누르면 불러옴)
           document.getElementById('gridTableBody').innerHTML = '<tr><td colspan="5" style="color:#888; padding: 15px;">탭을 눌러 기록을 갱신하세요.</td></tr>';
         }
       }
@@ -257,6 +278,7 @@
       document.getElementById('roleSelectionView').classList.add('hidden');
       document.getElementById('loginView').classList.remove('hidden');
     }
+    
     function goBackToSelection() { document.getElementById('loginView').classList.add('hidden'); document.getElementById('roleSelectionView').classList.remove('hidden'); }
     function logout() { localStorage.clear(); location.reload(); }
 
@@ -273,7 +295,27 @@
             return;
           }
           loginSuccess(id, response.role, response.name);
-        } else { document.getElementById('loginMsg').innerText = response.message; }
+        } else { document.getElementById('loginMsg').innerText = response.message || response.error; }
+      });
+    }
+
+    function executePasswordChange() {
+      const newPw = document.getElementById('newPw').value;
+      const confirmPw = document.getElementById('newPwConfirm').value;
+      
+      if (!newPw || !confirmPw) { document.getElementById('changePwMsg').innerText = "비밀번호를 입력해주세요."; return; }
+      if (newPw !== confirmPw) { document.getElementById('changePwMsg').innerText = "비밀번호가 일치하지 않습니다."; return; }
+      if (newPw.length < 4) { document.getElementById('changePwMsg').innerText = "비밀번호는 4자리 이상이어야 합니다."; return; }
+
+      document.getElementById('changePwMsg').innerText = "변경 중...";
+      
+      callGasApi('changePassword', { id: tempLoginId, newPassword: newPw }).then(function(res) {
+        if(res.success) {
+          document.getElementById('changePwView').classList.add('hidden');
+          loginSuccess(tempLoginId, selectedLoginRole, tempLoginName);
+        } else {
+          document.getElementById('changePwMsg').innerText = res.message || "변경에 실패했습니다.";
+        }
       });
     }
 
@@ -285,9 +327,10 @@
         document.getElementById('driverView').classList.remove('hidden');
         initializeDates();
         
-        // 🌟 [속도 개선] 로그인 직후에는 '배차 일정' 1개만 불러와서 체감 로딩 속도 2배 단축!
         loadDispatchList(); 
         isPhotosLoaded = false; 
+      } else if (role === 'admin') {
+        document.getElementById('adminView').classList.remove('hidden');
       }
     }
 
@@ -348,7 +391,7 @@
               container.appendChild(card);
             });
           }
-        } else { container.innerHTML = `<p style="color:#d93025; font-weight:600;">조회 오류 발생</p>`; }
+        } else { container.innerHTML = `<p style="color:#d93025; font-weight:600;">조회 오류 발생: ${res.error || res.message}</p>`; }
       });
     }
 
@@ -359,7 +402,7 @@
       callGasApi('getDriverPhotos', { driverId }).then(function(response) {
         if(response && response.success) { 
           globalPhotosArray = response.data || []; 
-          isPhotosLoaded = true; // 성공적으로 불러왔으므로 플래그 활성화
+          isPhotosLoaded = true;
           renderPhotoGrid(); 
         } else {
           document.getElementById('gridTableBody').innerHTML = '<tr><td colspan="5" style="color:#d93025; padding:15px;">사진 조회 실패</td></tr>';
@@ -406,33 +449,67 @@
       });
     }
 
+    // 🌟 2. 초고속 이미지 압축 및 업로드 기능
     function uploadPhoto() {
       const dateVal = document.getElementById('masterDate').value;
       const stage = document.getElementById('photoStage').value;
-      const file = document.getElementById('photoInput').files[0]; 
+      const fileInput = document.getElementById('photoInput');
+      const file = fileInput.files[0]; 
       const driverId = localStorage.getItem('currentUser');
+      
       if(!stage || !file) { alert('단계와 사진을 확인해 주세요.'); return; }
       
       const btn = document.querySelector('#pane_upload .btn-solid');
-      btn.innerText = "전송 중..."; btn.disabled = true;
-      document.getElementById('uploadMsg').innerText = "사진을 구글 드라이브로 보내는 중입니다...";
+      btn.innerText = "사진 압축 및 전송 중..."; btn.disabled = true;
+      document.getElementById('uploadMsg').innerText = "사진 용량을 줄여서 빠르게 전송 중입니다...";
+      document.getElementById('uploadMsg').style.color = "#333";
       
       const reader = new FileReader();
       reader.onload = function(e) {
-        callGasApi('uploadDashboardPhoto', { base64Data: e.target.result, fileName: file.name, driverId, stage, customDate: dateVal }).then(function(res) {
-          btn.innerText = "구글 드라이브 업로드"; btn.disabled = false;
-          if(res.success) {
-            document.getElementById('uploadMsg').innerText = "업로드 완료!";
-            document.getElementById('uploadMsg').style.color = "#16a34a";
-            document.getElementById('photoInput').value = ''; document.getElementById('photoStage').selectedIndex = 0; 
-            
-            // 사진을 올렸으므로 캐시를 무효화
-            isPhotosLoaded = false;
-          } else { 
-            document.getElementById('uploadMsg').innerText = "오류 발생"; 
-            document.getElementById('uploadMsg').style.color = "#d93025";
+        // 이미지를 메모리에 불러오기
+        const img = new Image();
+        img.onload = function() {
+          // 캔버스를 이용해 해상도 리사이징 (최대 가로 1200px)
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1200; 
+          let width = img.width;
+          let height = img.height;
+
+          if (width > MAX_WIDTH) {
+            height = Math.round(height *= MAX_WIDTH / width);
+            width = MAX_WIDTH;
           }
-        });
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // JPEG 포맷으로 화질 60% 압축
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+
+          // 압축된 데이터를 구글 서버로 전송
+          callGasApi('uploadDashboardPhoto', { 
+            base64Data: compressedBase64, 
+            fileName: file.name.split('.')[0] + '.jpg', 
+            driverId: driverId, 
+            stage: stage, 
+            customDate: dateVal 
+          }).then(function(res) {
+            btn.innerText = "구글 드라이브 업로드"; btn.disabled = false;
+            if(res.success) {
+              document.getElementById('uploadMsg').innerText = "초고속 업로드 완료!";
+              document.getElementById('uploadMsg').style.color = "#16a34a";
+              fileInput.value = ''; document.getElementById('photoStage').selectedIndex = 0; 
+              
+              isPhotosLoaded = false; // 새 파일이 올라갔으니 캐시 무효화
+            } else { 
+              document.getElementById('uploadMsg').innerText = "오류 발생: " + res.error; 
+              document.getElementById('uploadMsg').style.color = "#d93025";
+            }
+          });
+        };
+        img.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -441,8 +518,21 @@
       if(!confirm('사진을 삭제하시겠습니까?')) return;
       callGasApi('deleteDriverPhoto', { fileId, driverId: localStorage.getItem('currentUser') }).then(function(res) {
         if(res.success) { loadDriverPhotos(); }
+        else { alert("삭제 실패: " + (res.error || "알 수 없는 오류")); }
       });
     }
+
+    // 브라우저에 저장된 로그인 정보가 있으면 자동 로그인 처리 (선택 사항)
+    window.onload = function() {
+      const storedId = localStorage.getItem('currentUser');
+      const storedRole = localStorage.getItem('userRole');
+      const storedName = localStorage.getItem('userName');
+      
+      if (storedId && storedRole && storedName) {
+        document.getElementById('roleSelectionView').classList.add('hidden');
+        loginSuccess(storedId, storedRole, storedName);
+      }
+    };
   </script>
 </body>
 </html>

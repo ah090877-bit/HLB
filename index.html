@@ -5,37 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>운행 관제 시스템</title>
   
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   
   <style>
-    body { font-family: 'Noto Sans KR', sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 12px; box-sizing: border-box; color: #333; }
+    body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 12px; box-sizing: border-box; color: #333; }
     .container { background: white; padding: 2rem 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; margin-top: 3vh; }
     .container.wide { max-width: 650px; text-align: left; margin-top: 1vh; padding: 1.2rem 0.8rem; }
     
-    h2 { color: #222; margin-bottom: 0.5rem; font-size: 1.4rem; letter-spacing: -0.5px; text-align: center; }
+    h2 { color: #222; margin-bottom: 0.5rem; font-size: 1.4rem; letter-spacing: -0.5px; text-align: center; font-weight: 700; }
     .container.wide h2 { text-align: left; }
     p.subtitle { color: #6b7280; font-size: 0.85rem; margin-bottom: 1.5rem; text-align: center; }
     .container.wide p.subtitle { text-align: left; }
     
-    .btn-outline { width: 100%; padding: 14px; margin: 8px 0; border-radius: 8px; background-color: transparent; cursor: pointer; font-weight: bold; font-size: 1rem; display: flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #ddd; font-family: 'Noto Sans KR', sans-serif; }
+    .btn-outline { width: 100%; padding: 14px; margin: 8px 0; border-radius: 8px; background-color: transparent; cursor: pointer; font-weight: 600; font-size: 1rem; display: flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #ddd; font-family: inherit; }
     .btn-outline.blue { border-color: #1a73e8; color: #1a73e8; }
     .btn-outline.green { border-color: #188038; color: #188038; }
     
-    input, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; font-size: 0.95rem; background-color: white; color: #333; font-family: 'Noto Sans KR', sans-serif; }
-    label { display: block; text-align: left; font-size: 0.85rem; font-weight: bold; color: #555; margin-top: 10px; }
+    input, select { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; font-size: 0.95rem; background-color: white; color: #333; font-family: inherit; }
+    label { display: block; text-align: left; font-size: 0.85rem; font-weight: 600; color: #555; margin-top: 10px; }
     
-    .btn-solid { width: 100%; padding: 14px; margin: 12px 0 8px 0; border-radius: 8px; border: none; background-color: #1a73e8; color: white; cursor: pointer; font-weight: bold; font-size: 1rem; font-family: 'Noto Sans KR', sans-serif; }
-    .back-text { display: block; margin-top: 15px; color: #6b7280; font-size: 0.85rem; text-decoration: underline; cursor: pointer; border: none; background: none; width: 100%; text-align: center; font-family: 'Noto Sans KR', sans-serif; }
+    .btn-solid { width: 100%; padding: 14px; margin: 12px 0 8px 0; border-radius: 8px; border: none; background-color: #1a73e8; color: white; cursor: pointer; font-weight: 600; font-size: 1rem; font-family: inherit; }
+    .back-text { display: block; margin-top: 15px; color: #6b7280; font-size: 0.85rem; text-decoration: underline; cursor: pointer; border: none; background: none; width: 100%; text-align: center; font-family: inherit; }
     
     .greeting-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 10px; }
-    .role-badge { background-color: #188038; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; letter-spacing: -0.5px; }
-    .greeting-text { font-size: 1rem; font-weight: bold; color: #222; }
+    .role-badge { background-color: #188038; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; letter-spacing: -0.5px; }
+    .greeting-text { font-size: 1rem; font-weight: 700; color: #222; }
     
     .tabs-nav { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid #cbd5e1; }
-    .tab-item { flex: 1; text-align: center; padding: 11px 4px; font-size: 0.85rem; font-weight: 700; color: #475569; cursor: pointer; border-radius: 6px; transition: all 0.2s; white-space: nowrap; }
-    .tab-item.active { background: white; color: #1a73e8; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+    .tab-item { flex: 1; text-align: center; padding: 11px 4px; font-size: 0.85rem; font-weight: 600; color: #475569; cursor: pointer; border-radius: 6px; transition: all 0.2s; white-space: nowrap; }
+    .tab-item.active { background: white; color: #1a73e8; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
     .tab-content { display: block; }
     
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); text-align: left; border-left: 4px solid #1a73e8; cursor: pointer; transition: background 0.15s; overflow: hidden; }
@@ -44,37 +42,37 @@
     .card-main { padding: 14px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .card-info { flex: 1; min-width: 0; } 
     
-    .card-info h4 { margin: 0 0 8px 0; font-size: 1.05rem; color: #1e293b; display: flex; align-items: center; gap: 6px; line-height: 1.3; }
-    .order-tag { background: #e2e8f0; color: #475569; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; }
+    .card-info h4 { margin: 0 0 8px 0; font-size: 1.05rem; color: #1e293b; display: flex; align-items: center; gap: 6px; line-height: 1.3; font-weight: 700; }
+    .order-tag { background: #e2e8f0; color: #475569; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
     
     .card-meta { font-size: 0.85rem; color: #475569; line-height: 1.5; }
     .card-meta-item { display: flex; align-items: center; margin-bottom: 4px; gap: 6px; }
     
-    .meta-label { display: inline-block; font-size: 0.7rem; font-weight: bold; padding: 2px 5px; border-radius: 4px; flex-shrink: 0; min-width: 35px; text-align: center; letter-spacing: -0.5px; }
+    .meta-label { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 2px 5px; border-radius: 4px; flex-shrink: 0; min-width: 35px; text-align: center; letter-spacing: -0.5px; }
     .meta-label.prod { background-color: #e0f2fe; color: #0369a1; }  
     .meta-label.order { background-color: #f1f5f9; color: #475569; } 
     .meta-label.qty { background-color: #fef3c7; color: #b45309; }   
     
     .meta-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: #334155; }
+    .meta-value.eng-num { font-weight: 600; letter-spacing: 0.5px; } /* 영문/숫자 전용 스타일 강조 */
     
     .card-action { flex-shrink: 0; min-width: 90px; text-align: right; }
-    .btn-arrival { background-color: #1a73e8; color: white; border: none; padding: 9px 11px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; white-space: nowrap; font-family: 'Noto Sans KR', sans-serif; }
-    .arrival-done { color: #16a34a; font-weight: bold; font-size: 0.8rem; background-color: #f0fdf4; padding: 6px 10px; border-radius: 6px; display: inline-block; border: 1px solid #bbf7d0; white-space: nowrap; }
+    .btn-arrival { background-color: #1a73e8; color: white; border: none; padding: 9px 11px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
+    .arrival-done { color: #16a34a; font-weight: 700; font-size: 0.8rem; background-color: #f0fdf4; padding: 6px 10px; border-radius: 6px; display: inline-block; border: 1px solid #bbf7d0; white-space: nowrap; }
     
     .card-detail { padding: 12px; border-top: 1px dashed #e2e8f0; background-color: #f8fafc; font-size: 0.85rem; color: #475569; }
     .detail-item { margin-bottom: 6px; line-height: 1.4; }
     
-    /* 🌟 [가로 스크롤 제거] 스마트폰 폭에 강제 맞춤 및 여백 슬림화 */
     .table-container { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; background: white; overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; table-layout: fixed; } /* 비율 고정으로 화면을 넘어가지 않음 */
-    th, td { padding: 8px 2px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; text-align: center; vertical-align: middle; font-size: 0.75rem; word-break: keep-all; }
-    th { background-color: #f8f9fa; color: #333; font-weight: bold; border-bottom: 2px solid #cbd5e1; font-size: 0.75rem; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; } 
+    th, td { padding: 8px 2px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; text-align: center; vertical-align: middle; font-size: 0.75rem; word-break: keep-all; font-weight: 500; }
+    th { background-color: #f8f9fa; color: #333; font-weight: 700; border-bottom: 2px solid #cbd5e1; }
     th:last-child, td:last-child { border-right: none; }
     
     .grid-btn-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
     
-    .btn-sm { padding: 4px 0; font-size: 0.7rem; border-radius: 4px; border: 1px solid #cbd5e1; cursor: pointer; background: white; text-decoration: none; color: #333; font-family: 'Noto Sans KR', sans-serif; display: inline-block; width: 38px; text-align: center; box-sizing: border-box; }
-    .btn-sm.view { color: #1a73e8; border-color: #1a73e8; font-weight: bold; }
+    .btn-sm { padding: 4px 0; font-size: 0.7rem; border-radius: 4px; border: 1px solid #cbd5e1; cursor: pointer; background: white; text-decoration: none; color: #333; font-family: inherit; display: inline-block; width: 38px; text-align: center; box-sizing: border-box; font-weight: 500; }
+    .btn-sm.view { color: #1a73e8; border-color: #1a73e8; font-weight: 600; }
     .btn-sm.danger { color: #d93025; border-color: #d93025; }
     .hidden { display: none !important; }
   </style>
@@ -114,7 +112,7 @@
         <span class="greeting-text"><span id="driverNameDisplay"></span>님</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px; background: #fff; padding: 2px 6px; border-radius: 6px; border: 1px solid #cbd5e1;">
-        <input type="date" id="masterDate" style="margin:0; padding:4px; border:none; font-size:0.85rem; font-weight:bold;" onchange="syncDateChange()">
+        <input type="date" id="masterDate" style="margin:0; padding:4px; border:none; font-size:0.85rem; font-weight:700;" onchange="syncDateChange()">
       </div>
     </div>
 
@@ -125,14 +123,14 @@
     </div>
 
     <div id="pane_dispatch" class="tab-content">
-      <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #1e293b;">운행 목록 <span id="vehicleDisplay" style="font-size:0.8rem; color:#64748b; font-weight:normal;"></span></h3>
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #1e293b; font-weight:700;">운행 목록 <span id="vehicleDisplay" style="font-size:0.8rem; color:#64748b; font-weight:normal;"></span></h3>
       <div id="dispatchListContainer">
         <p style="color:#888; font-size:0.85rem;">배차 데이터를 조회 중입니다...</p>
       </div>
     </div>
 
     <div id="pane_upload" class="tab-content hidden">
-      <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #1e293b;">계기판 사진 등록</h3>
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #1e293b; font-weight:700;">계기판 사진 등록</h3>
       <label for="photoStage">운행 단계</label>
       <select id="photoStage">
         <option value="" disabled selected>--- 단계 선택 ---</option>
@@ -144,13 +142,13 @@
       <label for="photoInput">사진 파일 선택</label>
       <input type="file" id="photoInput" accept="image/*">
       <button class="btn-solid" style="background-color: #188038;" onclick="uploadPhoto()">구글 드라이브 업로드</button>
-      <p id="uploadMsg" style="font-size: 0.85rem; margin-top: 8px; text-align: center; font-weight: bold;"></p>
+      <p id="uploadMsg" style="font-size: 0.85rem; margin-top: 8px; text-align: center; font-weight: 700;"></p>
     </div>
 
     <div id="pane_history" class="tab-content hidden">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 8px;">
-        <h3 style="margin: 0; font-size: 1rem; color: #1e293b;">월별 운행 증빙판</h3>
-        <input type="month" id="filterMonth" style="margin: 0; padding: 4px 6px; width: 110px; font-size:0.8rem;" onchange="renderPhotoGrid()">
+        <h3 style="margin: 0; font-size: 1rem; color: #1e293b; font-weight:700;">월별 운행 증빙판</h3>
+        <input type="month" id="filterMonth" style="margin: 0; padding: 4px 6px; width: 110px; font-size:0.8rem; font-weight:600;" onchange="syncMonthChange()">
       </div>
       
       <div class="table-container">
@@ -158,7 +156,9 @@
           <thead>
             <tr><th style="width: 18%;">날짜</th><th style="width: 20%;">출발</th><th style="width: 20%;">입차</th><th style="width: 20%;">복귀</th><th style="width: 20%;">도착</th></tr>
           </thead>
-          <tbody id="gridTableBody"></tbody>
+          <tbody id="gridTableBody">
+            <tr><td colspan="5" style="color:#888; padding: 15px;">기록을 조회하려면 위 월을 선택하세요.</td></tr>
+          </tbody>
         </table>
       </div>
     </div>
@@ -173,7 +173,10 @@
 
   <script>
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyiEQBiKc7-DGPQoFEixbC1OMgMZ1fB3nto3D98V-mUXTYbEx9NjMsrM_aqV0rLfebK7Q/exec';
+    
+    // 🌟 [속도 개선] 지연 로딩을 위한 캐시 상태 변수
     let globalPhotosArray = []; 
+    let isPhotosLoaded = false;
 
     function callGasApi(action, data = {}) {
       return fetch(GAS_WEBAPP_URL, {
@@ -183,11 +186,17 @@
       }).then(res => res.json()).catch(err => ({ success: false, error: err.toString() }));
     }
 
+    // 🌟 [속도 개선] 탭을 이동할 때만 데이터를 조회하도록 로직 변경
     function switchTab(tabName) {
       document.querySelectorAll('.tab-content').forEach(p => p.classList.add('hidden'));
       document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
       document.getElementById('pane_' + tabName).classList.remove('hidden');
       document.getElementById('tabBtn_' + tabName).classList.add('active');
+
+      // 월별 내역 탭을 눌렀는데, 아직 데이터를 안 불러왔다면 그때서야 구글 서버에 요청!
+      if (tabName === 'history' && !isPhotosLoaded) {
+        loadDriverPhotos();
+      }
     }
 
     function toggleCardDetail(cardEl) {
@@ -225,8 +234,22 @@
       const mDate = document.getElementById('masterDate').value;
       if(mDate) {
         document.getElementById('filterMonth').value = mDate.substring(0, 7);
-        renderPhotoGrid(); loadDispatchList();
+        isPhotosLoaded = false; // 날짜가 바뀌면 사진 캐시 무효화
+        
+        loadDispatchList(); // 첫 화면인 배차만 먼저 불러옴
+        
+        // 만약 현재 월별 내역 탭을 보고 있다면 즉시 사진 데이터도 리로드
+        if(document.getElementById('tabBtn_history').classList.contains('active')) {
+          loadDriverPhotos();
+        } else {
+          // 안 보고 있으면 표 비워두기 (나중에 탭 누르면 불러옴)
+          document.getElementById('gridTableBody').innerHTML = '<tr><td colspan="5" style="color:#888; padding: 15px;">탭을 눌러 기록을 갱신하세요.</td></tr>';
+        }
       }
+    }
+
+    function syncMonthChange() {
+      renderPhotoGrid();
     }
 
     function showLoginForm(role) {
@@ -240,7 +263,7 @@
     function attemptLogin() {
       const id = document.getElementById('userId').value.trim(); const pw = document.getElementById('userPw').value;
       if(!id || !pw) return;
-      document.getElementById('loginMsg').innerText = '확인 중...';
+      document.getElementById('loginMsg').innerText = '로그인 정보 확인 중...';
       callGasApi('verifyLogin', { id, password: pw }).then(function(response) {
         if(response.success) {
           if(response.isFirstLogin) {
@@ -260,7 +283,11 @@
       if(role === 'driver') {
         document.getElementById('driverNameDisplay').innerText = name;
         document.getElementById('driverView').classList.remove('hidden');
-        initializeDates(); loadDispatchList(); loadDriverPhotos(); 
+        initializeDates();
+        
+        // 🌟 [속도 개선] 로그인 직후에는 '배차 일정' 1개만 불러와서 체감 로딩 속도 2배 단축!
+        loadDispatchList(); 
+        isPhotosLoaded = false; 
       }
     }
 
@@ -270,7 +297,7 @@
       const container = document.getElementById('dispatchListContainer');
       const vehicleDisplay = document.getElementById('vehicleDisplay');
       
-      container.innerHTML = '<p style="color:#888; font-size:0.85rem;">조회 중...</p>';
+      container.innerHTML = '<p style="color:#1a73e8; font-size:0.85rem; font-weight:600;">배차 데이터를 빠르게 불러오는 중입니다...</p>';
       vehicleDisplay.innerText = '';
 
       callGasApi('getDriverDispatch', { driverId, targetDate }).then(function(res) {
@@ -290,7 +317,6 @@
                 `<span class="arrival-done">도착 ${item.arrivalTime}</span>` : 
                 `<button class="btn-arrival" onclick="markArrival(event, '${item.orderNum}', '${item.order}')">배송지 도착</button>`;
 
-              // 🌟 요청하신 순서대로 재배치 (주문 -> 제품 -> 수량)
               card.innerHTML = `
                 <div class="card-main">
                   <div class="card-info">
@@ -298,7 +324,7 @@
                     <div class="card-meta">
                       <div class="card-meta-item">
                         <span class="meta-label order">주문</span>
-                        <span class="meta-value" style="font-family: monospace; font-size:0.9rem;">${item.orderNum}</span>
+                        <span class="meta-value eng-num">${item.orderNum}</span>
                       </div>
                       <div class="card-meta-item">
                         <span class="meta-label prod">제품</span>
@@ -306,7 +332,7 @@
                       </div>
                       <div class="card-meta-item">
                         <span class="meta-label qty">수량</span>
-                        <span class="meta-value" style="color: #b45309; font-weight:700;">${item.qty}개</span>
+                        <span class="meta-value eng-num" style="color: #b45309;">${item.qty}개</span>
                       </div>
                     </div>
                   </div>
@@ -314,22 +340,30 @@
                 </div>
                 <div class="card-detail hidden">
                   <div class="detail-item"><strong>주소:</strong> ${item.clientAddr}</div>
-                  <div class="detail-item"><strong>연락처:</strong> ${item.clientPhone}</div>
-                  <div class="detail-item" style="color:#d93025; font-weight:500;"><strong>비고:</strong> ${item.remarks || '없음'}</div>
+                  <div class="detail-item"><strong>연락처:</strong> <span class="eng-num">${item.clientPhone}</span></div>
+                  <div class="detail-item" style="color:#d93025; font-weight:600;"><strong>비고:</strong> ${item.remarks || '없음'}</div>
                   <div style="text-align:right; font-size:0.75rem; color:#94a3b8; margin-top:6px;">상세 닫기: 카드를 다시 터치하세요.</div>
                 </div>
               `;
               container.appendChild(card);
             });
           }
-        } else { container.innerHTML = `<p style="color:#d93025;">조회 오류 발생</p>`; }
+        } else { container.innerHTML = `<p style="color:#d93025; font-weight:600;">조회 오류 발생</p>`; }
       });
     }
 
     function loadDriverPhotos() {
       const driverId = localStorage.getItem('currentUser');
+      document.getElementById('gridTableBody').innerHTML = '<tr><td colspan="5" style="color:#1a73e8; font-weight:600; padding:15px;">서버에서 사진 기록을 조회 중입니다...</td></tr>';
+      
       callGasApi('getDriverPhotos', { driverId }).then(function(response) {
-        if(response && response.success) { globalPhotosArray = response.data || []; renderPhotoGrid(); }
+        if(response && response.success) { 
+          globalPhotosArray = response.data || []; 
+          isPhotosLoaded = true; // 성공적으로 불러왔으므로 플래그 활성화
+          renderPhotoGrid(); 
+        } else {
+          document.getElementById('gridTableBody').innerHTML = '<tr><td colspan="5" style="color:#d93025; padding:15px;">사진 조회 실패</td></tr>';
+        }
       });
     }
 
@@ -349,13 +383,13 @@
 
       const sortedDates = Object.keys(gridData).sort().reverse();
       if(sortedDates.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="color:#888; padding: 12px; font-size:0.8rem;">내역이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#64748b; padding: 15px; font-size:0.85rem;">해당 월에 업로드된 내역이 없습니다.</td></tr>';
         return;
       }
 
       sortedDates.forEach(function(date) {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><strong>${date.substring(5)}</strong></td>`; 
+        tr.innerHTML = `<td><strong class="eng-num">${date.substring(5)}</strong></td>`; 
         ['1.자택 출발', '2.센터 입차', '3.센터 복귀', '4.자택 도착'].forEach(function(stageName) {
           const td = document.createElement('td');
           const p = gridData[date][stageName];
@@ -365,7 +399,7 @@
                 <a href="${p.url}" target="_blank" class="btn-sm view">보기</a>
                 <button class="btn-sm danger" onclick="deletePhoto('${p.fileId}')">삭제</button>
               </div>`;
-          } else { td.innerHTML = '<span style="color:#ccc;">-</span>'; }
+          } else { td.innerHTML = '<span style="color:#cbd5e1;">-</span>'; }
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
@@ -379,15 +413,25 @@
       const driverId = localStorage.getItem('currentUser');
       if(!stage || !file) { alert('단계와 사진을 확인해 주세요.'); return; }
       
-      document.getElementById('uploadMsg').innerText = "전송 중...";
+      const btn = document.querySelector('#pane_upload .btn-solid');
+      btn.innerText = "전송 중..."; btn.disabled = true;
+      document.getElementById('uploadMsg').innerText = "사진을 구글 드라이브로 보내는 중입니다...";
+      
       const reader = new FileReader();
       reader.onload = function(e) {
         callGasApi('uploadDashboardPhoto', { base64Data: e.target.result, fileName: file.name, driverId, stage, customDate: dateVal }).then(function(res) {
+          btn.innerText = "구글 드라이브 업로드"; btn.disabled = false;
           if(res.success) {
-            document.getElementById('uploadMsg').innerText = "전송 완료";
+            document.getElementById('uploadMsg').innerText = "업로드 완료!";
+            document.getElementById('uploadMsg').style.color = "#16a34a";
             document.getElementById('photoInput').value = ''; document.getElementById('photoStage').selectedIndex = 0; 
-            loadDriverPhotos(); 
-          } else { document.getElementById('uploadMsg').innerText = "오류 발생"; }
+            
+            // 사진을 올렸으므로 캐시를 무효화
+            isPhotosLoaded = false;
+          } else { 
+            document.getElementById('uploadMsg').innerText = "오류 발생"; 
+            document.getElementById('uploadMsg').style.color = "#d93025";
+          }
         });
       };
       reader.readAsDataURL(file);

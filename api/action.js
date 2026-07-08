@@ -17,8 +17,12 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // 환경변수 파싱 시 줄바꿈 오류 방지
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS.replace(/\\n/g, '\n'));
+    // JSON 줄바꿈 파싱 에러 방지 처리
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    if (credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    }
+
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
@@ -58,7 +62,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사님 배차 조회
+    // 3. 기사님 배차 조회 (호차배정 시트 참조)
     if (action === 'getDriverDispatch') {
       const dateObj = new Date(body.targetDate);
       const month = dateObj.getMonth() + 1;
@@ -80,7 +84,7 @@ export default async function handler(req, res) {
           if(!row[0]) continue;
           if (String(row[0]).substring(0, 10) === dateString && String(row[3]).replace(/[-']/g, '') === fullPhone) { assignedVehicle = row[1]; break; }
         }
-        if (!assignedVehicle) return res.status(200).json({ success: true, data: [], message: '배정된 호차가 없습니다.' });
+        if (!assignedVehicle) return res.status(200).json({ success: true, data: [], message: '금일 배정된 호차가 없습니다.' });
 
         let dispatchList = [];
         for (let row of dispatchData) {
@@ -137,14 +141,36 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 5. 사진 업로드 (Vercel 최적화)
+    // 🌟 5. 사진 업로드 (고정 차량번호 대신 당일 배정된 '호차'를 조회하여 파일명에 사용)
     if (action === 'uploadDashboardPhoto') {
       try {
-        const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
-        let driverName = ''; let vehicleNum = '';
-        for(let row of (usersRes.data.values || [])) { if(String(row[2]) === String(body.driverId)) { driverName = row[1]; vehicleNum = row[5]; break; } }
-
         const tDate = new Date(body.customDate);
+        const month = tDate.getMonth() + 1;
+        
+        const batchRes = await sheets.spreadsheets.values.batchGet({
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:H', `${month}월_호차배정!A2:E`]
+        });
+        
+        const users = batchRes.data.valueRanges[0].values || [];
+        const assigns = batchRes.data.valueRanges[1].values || [];
+
+        let driverName = ''; let fullPhone = ''; 
+        for(let row of users) { 
+          if(String(row[2]) === String(body.driverId)) { 
+            driverName = row[1]; fullPhone = String(row[3]).replace(/[-']/g, ''); break; 
+          } 
+        }
+
+        const dateString = body.customDate.substring(0, 10);
+        let assignedVehicle = '미배정';
+        // 당일 배정된 호차 찾기
+        for(let a of assigns) {
+          if(!a[0]) continue;
+          if(String(a[0]).substring(0, 10) === dateString && String(a[3]).replace(/[-']/g, '') === fullPhone) {
+            assignedVehicle = a[1]; break;
+          }
+        }
+
         const kst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
         const yearMonthStr = `${tDate.getFullYear()}년 ${String(tDate.getMonth()+1).padStart(2,'0')}월`;
         const dayStr = `${String(tDate.getDate()).padStart(2,'0')}일`;
@@ -162,11 +188,11 @@ export default async function handler(req, res) {
         const dayFolderId = await getOrCreateFolder(dayStr, monthFolderId);
 
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
-        const newFileName = `${driverName}_${body.stage}_${vehicleNum}_${timeStr}${ext}`;
+        const newFileName = `${driverName}_${body.stage}_${assignedVehicle}_${timeStr}${ext}`; // 배정된 호차 파일명 삽입
         
         const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
         const buffer = Buffer.from(body.base64Data.split(',')[1], 'base64');
-        const bufferStream = stream.Readable.from(buffer); // Vercel 500 에러 해결을 위한 스트림 방식 변경
+        const bufferStream = stream.Readable.from(buffer);
 
         const fileRes = await drive.files.create({
           requestBody: { name: newFileName, parents: [dayFolderId] }, media: { mimeType: mimeType, body: bufferStream }, fields: 'id, webViewLink', supportsAllDrives: true
@@ -175,7 +201,7 @@ export default async function handler(req, res) {
         
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:G', valueInputOption: 'USER_ENTERED',
-          requestBody: { values: [[ body.customDate, body.driverId, driverName, vehicleNum, body.stage, fileRes.data.webViewLink, fileRes.data.id ]] }
+          requestBody: { values: [[ body.customDate, body.driverId, driverName, assignedVehicle, body.stage, fileRes.data.webViewLink, fileRes.data.id ]] }
         });
         return res.status(200).json({ success: true, url: fileRes.data.webViewLink });
       } catch (err) {
@@ -244,9 +270,9 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패 (해당 월의 배차 탭을 확인하세요)' }); }
     }
 
-    // 9. [관리자] 월별 통계 분석 (심층 데이터 - 대시보드용)
+    // 9. [관리자] 월별 통계 분석
     if (action === 'getAdminMonthlyStats') {
-      const monthStr = body.targetMonth; // ex: "2026-07"
+      const monthStr = body.targetMonth;
       const monthNum = parseInt(monthStr.split('-')[1], 10);
       try {
         const response = await sheets.spreadsheets.values.get({
@@ -254,11 +280,10 @@ export default async function handler(req, res) {
         });
         const dispatch = response.data.values || [];
         
-        let statsObj = {}; // 일자별 통계
-        let hospitalStats = {}; // 병원(거래처)별 통계
-        let vehicleStats = {}; // 호차별 통계
+        let statsObj = {};
+        let hospitalStats = {};
+        let vehicleStats = {};
 
-        // 시간 계산 유틸리티
         const timeToMins = (timeStr) => {
           if(!timeStr || !timeStr.includes(':')) return 0;
           const [h, m] = timeStr.split(':');
@@ -274,18 +299,15 @@ export default async function handler(req, res) {
           let client = String(row[3] || '알수없음');
           let arrTime = row[10] || null;
 
-          // 1. 일자별 현황
           if(!statsObj[dateKey]) statsObj[dateKey] = { date: dateKey, vehicles: new Set(), total: 0, done: 0 };
           statsObj[dateKey].vehicles.add(vehicle);
           statsObj[dateKey].total++;
           if(arrTime) statsObj[dateKey].done++;
 
-          // 2. 병원(거래처)별 배송 빈도 및 시간
           if(!hospitalStats[client]) hospitalStats[client] = { count: 0, arrTimes: [] };
           hospitalStats[client].count++;
           if(arrTime) hospitalStats[client].arrTimes.push(timeToMins(arrTime));
 
-          // 3. 호차별 운행 이력
           if(!vehicleStats[vehicle]) vehicleStats[vehicle] = { count: 0, clients: new Set(), endTimes: [] };
           vehicleStats[vehicle].count++;
           vehicleStats[vehicle].clients.add(client);
@@ -297,7 +319,6 @@ export default async function handler(req, res) {
           doneCount: statsObj[date].done, missingCount: statsObj[date].total - statsObj[date].done
         })).sort((a, b) => a.date.localeCompare(b.date));
 
-        // 호차별 평균 종료 시간 계산 (해당 호차의 각 일자별 가장 늦은 도착시간의 평균)
         let vStatsOut = [];
         for(let v in vehicleStats) {
            let endTimesByDate = {};
@@ -314,7 +335,6 @@ export default async function handler(req, res) {
            vStatsOut.push({ vehicle: v, clientCount: vehicleStats[v].clients.size, totalDeliveries: vehicleStats[v].count, avgEndTime: avgStr });
         }
 
-        // 병원별 평균 도착 시간 및 횟수
         let hStatsOut = Object.keys(hospitalStats).map(h => {
            let totalMins = hospitalStats[h].arrTimes.reduce((acc, val) => acc + val, 0);
            let arrCount = hospitalStats[h].arrTimes.length;
@@ -324,41 +344,42 @@ export default async function handler(req, res) {
              avgStr = `${String(Math.floor(avgMin/60)).padStart(2,'0')}:${String(avgMin%60).padStart(2,'0')}`;
            }
            return { hospital: h, count: hospitalStats[h].count, avgTime: avgStr };
-        }).sort((a,b) => b.count - a.count); // 횟수 내림차순
+        }).sort((a,b) => b.count - a.count);
 
         return res.status(200).json({ 
           success: true, 
-          data: statsArray,          // 기존 일자별 테이블용
-          hospitalData: hStatsOut,   // 병원별 데이터 (차트용)
-          vehicleData: vStatsOut     // 호차별 데이터 (차트용)
+          data: statsArray,
+          hospitalData: hStatsOut,
+          vehicleData: vStatsOut
         });
       } catch (err) { return res.status(200).json({ success: false, message: '해당 월의 데이터가 없습니다.' }); }
     }
 
-    // 10. [관리자] 기사 목록 조회
+    // 🌟 10. [관리자] 기사 목록 조회 (고정 호차 제거, 차량번호 반환)
     if (action === 'getDriverList') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
       let drivers = [];
       for (let row of (response.data.values || [])) {
-        if (row[0] === 'driver') drivers.push({ name: row[1], id: String(row[2]), phone: row[3], vehicle: row[5], carNumber: row[7] || '미등록', isFirst: row[6] });
+        if (row[0] === 'driver') drivers.push({ name: row[1], id: String(row[2]), phone: row[3], carNumber: row[7] || '미등록' });
       }
       return res.status(200).json({ success: true, data: drivers });
     }
 
-    // 11. [관리자] 신규 기사 등록 (호차/차량번호 분리 저장)
+    // 🌟 11. [관리자] 신규 기사 등록 (고정 호차 입력 제거)
     if (action === 'createDriverAccount') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A:H' });
       const cleanPhone = body.phone.replace(/-/g, '');
-      const formatPhone = cleanPhone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, `$1-$2-$3`); // 안전한 하이픈 포맷 적용
+      const formatPhone = cleanPhone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, `$1-$2-$3`);
       let loginId = cleanPhone.startsWith('010') ? cleanPhone.substring(3) : cleanPhone;
       
       for (let row of (response.data.values || [])) {
         if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님 혹은 번호입니다.' });
       }
       
+      // 시트 구조를 유지하기 위해 호차가 들어가던 F열(인덱스 5)은 '' 공란으로 둡니다.
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID, range: 'Users!A:H', valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [['driver', body.name, `'${loginId}`, `'${formatPhone}`, hashPassword('0000'), body.vehicle, 'Y', body.carNumber]] }
+        requestBody: { values: [['driver', body.name, `'${loginId}`, `'${formatPhone}`, hashPassword('0000'), '', 'Y', body.carNumber]] }
       });
       return res.status(200).json({ success: true });
     }

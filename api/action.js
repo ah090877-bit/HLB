@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // JSON 줄바꿈 파싱 에러 방지 처리
+    // JSON 파싱 에러 방지 처리
     const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     if (credentials.private_key) {
       credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
@@ -34,9 +34,9 @@ export default async function handler(req, res) {
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
 
-    // 1. 로그인
+    // 1. 로그인 (Users 범위 A:G)
     if (action === 'verifyLogin') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       const rows = response.data.values || [];
       const hashedPassword = hashPassword(body.password);
       for (let row of rows) {
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
 
     // 2. 비밀번호 변경
     if (action === 'changePassword') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       const rows = response.data.values || [];
       const hashedNewPassword = hashPassword(body.newPassword);
       for (let i = 0; i < rows.length; i++) {
@@ -62,13 +62,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사님 배차 조회 (호차배정 시트 참조)
+    // 3. 기사님 배차 조회 (호차배정 A:D, 배차리스트 A:K)
     if (action === 'getDriverDispatch') {
       const dateObj = new Date(body.targetDate);
       const month = dateObj.getMonth() + 1;
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:H', `${month}월_호차배정!A2:E`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
         });
         const usersData = response.data.valueRanges[0].values || [];
         const assignData = response.data.valueRanges[1].values || [];
@@ -110,7 +110,7 @@ export default async function handler(req, res) {
       const month = dateObj.getMonth() + 1;
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:H', `${month}월_호차배정!A2:E`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
         });
         const usersData = response.data.valueRanges[0].values || [];
         const assignData = response.data.valueRanges[1].values || [];
@@ -141,36 +141,18 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 🌟 5. 사진 업로드 (고정 차량번호 대신 당일 배정된 '호차'를 조회하여 파일명에 사용)
+    // 🌟 5. 사진 업로드 (Photos 구조에 맞춤: 날짜/아이디/이름/차량번호/구분/URL/파일ID)
     if (action === 'uploadDashboardPhoto') {
       try {
-        const tDate = new Date(body.customDate);
-        const month = tDate.getMonth() + 1;
-        
-        const batchRes = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:H', `${month}월_호차배정!A2:E`]
-        });
-        
-        const users = batchRes.data.valueRanges[0].values || [];
-        const assigns = batchRes.data.valueRanges[1].values || [];
-
-        let driverName = ''; let fullPhone = ''; 
-        for(let row of users) { 
+        const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
+        let driverName = ''; let carNum = '';
+        for(let row of (usersRes.data.values || [])) { 
           if(String(row[2]) === String(body.driverId)) { 
-            driverName = row[1]; fullPhone = String(row[3]).replace(/[-']/g, ''); break; 
+            driverName = row[1]; carNum = row[5]; break; 
           } 
         }
 
-        const dateString = body.customDate.substring(0, 10);
-        let assignedVehicle = '미배정';
-        // 당일 배정된 호차 찾기
-        for(let a of assigns) {
-          if(!a[0]) continue;
-          if(String(a[0]).substring(0, 10) === dateString && String(a[3]).replace(/[-']/g, '') === fullPhone) {
-            assignedVehicle = a[1]; break;
-          }
-        }
-
+        const tDate = new Date(body.customDate);
         const kst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
         const yearMonthStr = `${tDate.getFullYear()}년 ${String(tDate.getMonth()+1).padStart(2,'0')}월`;
         const dayStr = `${String(tDate.getDate()).padStart(2,'0')}일`;
@@ -188,7 +170,7 @@ export default async function handler(req, res) {
         const dayFolderId = await getOrCreateFolder(dayStr, monthFolderId);
 
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
-        const newFileName = `${driverName}_${body.stage}_${assignedVehicle}_${timeStr}${ext}`; // 배정된 호차 파일명 삽입
+        const newFileName = `${driverName}_${body.stage}_${carNum}_${timeStr}${ext}`;
         
         const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
         const buffer = Buffer.from(body.base64Data.split(',')[1], 'base64');
@@ -199,9 +181,10 @@ export default async function handler(req, res) {
         });
         await drive.permissions.create({ fileId: fileRes.data.id, requestBody: { role: 'reader', type: 'anyone' }, supportsAllDrives: true });
         
+        // Photos 구조에 맞춰 차량번호 삽입
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:G', valueInputOption: 'USER_ENTERED',
-          requestBody: { values: [[ body.customDate, body.driverId, driverName, assignedVehicle, body.stage, fileRes.data.webViewLink, fileRes.data.id ]] }
+          requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, fileRes.data.webViewLink, fileRes.data.id ]] }
         });
         return res.status(200).json({ success: true, url: fileRes.data.webViewLink });
       } catch (err) {
@@ -238,7 +221,7 @@ export default async function handler(req, res) {
       const month = dateObj.getMonth() + 1;
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:H', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
         });
         const users = response.data.valueRanges[0].values || [];
         const assign = response.data.valueRanges[1].values || [];
@@ -355,19 +338,19 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '해당 월의 데이터가 없습니다.' }); }
     }
 
-    // 🌟 10. [관리자] 기사 목록 조회 (고정 호차 제거, 차량번호 반환)
+    // 🌟 10. [관리자] 기사 목록 조회 (권한, 이름, 아이디, 전화번호, 비밀번호, 차량번호(row[5]), 첫로그인)
     if (action === 'getDriverList') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:H' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       let drivers = [];
       for (let row of (response.data.values || [])) {
-        if (row[0] === 'driver') drivers.push({ name: row[1], id: String(row[2]), phone: row[3], carNumber: row[7] || '미등록' });
+        if (row[0] === 'driver') drivers.push({ name: row[1], id: String(row[2]), phone: row[3], carNumber: row[5] || '미등록' });
       }
       return res.status(200).json({ success: true, data: drivers });
     }
 
-    // 🌟 11. [관리자] 신규 기사 등록 (고정 호차 입력 제거)
+    // 🌟 11. [관리자] 신규 기사 등록 (A:G 7개 열에 맞춰 삽입)
     if (action === 'createDriverAccount') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A:H' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A:G' });
       const cleanPhone = body.phone.replace(/-/g, '');
       const formatPhone = cleanPhone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, `$1-$2-$3`);
       let loginId = cleanPhone.startsWith('010') ? cleanPhone.substring(3) : cleanPhone;
@@ -376,10 +359,10 @@ export default async function handler(req, res) {
         if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님 혹은 번호입니다.' });
       }
       
-      // 시트 구조를 유지하기 위해 호차가 들어가던 F열(인덱스 5)은 '' 공란으로 둡니다.
+      // Users 시트: [A권한, B이름, C아이디, D전화번호, E비번, F차량번호, G최초로그인]
       await sheets.spreadsheets.values.append({
-        spreadsheetId: SPREADSHEET_ID, range: 'Users!A:H', valueInputOption: 'USER_ENTERED',
-        requestBody: { values: [['driver', body.name, `'${loginId}`, `'${formatPhone}`, hashPassword('0000'), '', 'Y', body.carNumber]] }
+        spreadsheetId: SPREADSHEET_ID, range: 'Users!A:G', valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [['driver', body.name, `'${loginId}`, `'${formatPhone}`, hashPassword('0000'), body.carNumber, 'Y']] }
       });
       return res.status(200).json({ success: true });
     }

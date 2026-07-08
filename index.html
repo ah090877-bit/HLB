@@ -220,13 +220,11 @@
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <input type="text" id="newDriverName" placeholder="이름 (예: 홍길동)" style="flex:1; min-width:120px;">
             <input type="text" id="newDriverPhone" placeholder="휴대폰 (하이픈 자동입력)" style="flex:1; min-width:140px;">
-            <!-- 🌟 매일 바뀌는 고정 호차(Vehicle) 입력창은 삭제했습니다. -->
             <input type="text" id="newDriverCarNum" placeholder="차량번호 (예: 12가3456)" style="flex:1; min-width:120px;">
             <button class="btn-solid" style="width:100px; margin:8px 0;" onclick="createDriver()">등록</button>
           </div>
         </div>
         <table>
-          <!-- 🌟 불필요해진 고정 호차(F열) 표시 항목을 삭제하고 차량번호만 깔끔하게 노출합니다. -->
           <thead><tr><th>이름</th><th>아이디(뒤8자리)</th><th>연락처</th><th>차량번호</th></tr></thead>
           <tbody id="adminDriverBody"></tbody>
         </table>
@@ -532,13 +530,14 @@
       });
     }
 
-    // 🌟 관리자 기사목록에서 차량번호를 표시하도록 수정
+    // 🌟 관리자 기사목록에서 차량번호를 명확하게 표시하도록 렌더링 수정
     function loadAdminDriverList() {
       callGasApi('getDriverList').then(res => {
         const tbody = document.getElementById('adminDriverBody');
         tbody.innerHTML = '';
         if(res.success) {
           res.data.forEach(d => {
+            // 이름, 아이디, 전화번호, 차량번호 4가지를 출력합니다.
             tbody.innerHTML += `<tr><td>${d.name}</td><td>${d.id}</td><td>${d.phone}</td><td>${d.carNumber}</td></tr>`;
           });
         }
@@ -552,7 +551,7 @@
       e.target.value = val;
     });
 
-    // 🌟 기사 등록 시 고정 '호차(vehicle)' 파라미터를 뺐습니다.
+    // 🌟 기사 등록: 이름, 휴대폰, 차량번호 3가지만 서버로 전송
     function createDriver() {
       const name = document.getElementById('newDriverName').value;
       const phone = document.getElementById('newDriverPhone').value;

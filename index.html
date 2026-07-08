@@ -14,8 +14,10 @@
     .container { background: white; padding: 2rem 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 450px; text-align: center; box-sizing: border-box; margin-top: 3vh; }
     .container.wide { max-width: 650px; text-align: left; margin-top: 1vh; padding: 1.2rem 0.8rem; }
     
-    h2 { color: #222; margin-bottom: 0.5rem; font-size: 1.4rem; letter-spacing: -0.5px; }
-    p.subtitle { color: #6b7280; font-size: 0.85rem; margin-bottom: 1.5rem; }
+    h2 { color: #222; margin-bottom: 0.5rem; font-size: 1.4rem; letter-spacing: -0.5px; text-align: center; }
+    .container.wide h2 { text-align: left; }
+    p.subtitle { color: #6b7280; font-size: 0.85rem; margin-bottom: 1.5rem; text-align: center; }
+    .container.wide p.subtitle { text-align: left; }
     
     .btn-outline { width: 100%; padding: 14px; margin: 8px 0; border-radius: 8px; background-color: transparent; cursor: pointer; font-weight: bold; font-size: 1rem; display: flex; justify-content: center; align-items: center; gap: 8px; border: 1px solid #ddd; font-family: 'Noto Sans KR', sans-serif; }
     .btn-outline.blue { border-color: #1a73e8; color: #1a73e8; }
@@ -25,53 +27,58 @@
     label { display: block; text-align: left; font-size: 0.85rem; font-weight: bold; color: #555; margin-top: 10px; }
     
     .btn-solid { width: 100%; padding: 14px; margin: 12px 0 8px 0; border-radius: 8px; border: none; background-color: #1a73e8; color: white; cursor: pointer; font-weight: bold; font-size: 1rem; font-family: 'Noto Sans KR', sans-serif; }
-    .back-text { display: block; margin-top: 15px; color: #6b7280; font-size: 0.85rem; text-decoration: underline; cursor: pointer; border: none; background: none; width: 100%; text-align: center; }
+    .back-text { display: block; margin-top: 15px; color: #6b7280; font-size: 0.85rem; text-decoration: underline; cursor: pointer; border: none; background: none; width: 100%; text-align: center; font-family: 'Noto Sans KR', sans-serif; }
     
     .greeting-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 10px; }
     .role-badge { background-color: #188038; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; letter-spacing: -0.5px; }
     .greeting-text { font-size: 1rem; font-weight: bold; color: #222; }
     
-    .tabs-nav { display: flex; background: #f1f5f9; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid #e2e8f0; }
-    .tab-item { flex: 1; text-align: center; padding: 10px 4px; font-size: 0.85rem; font-weight: 500; color: #64748b; cursor: pointer; border-radius: 6px; transition: all 0.2s; white-space: nowrap; }
-    .tab-item.active { background: white; color: #1a73e8; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    /* 🌟 프리미엄 상단 탭 (이모지 완전 제거) */
+    .tabs-nav { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 15px; border: 1px solid #cbd5e1; }
+    .tab-item { flex: 1; text-align: center; padding: 11px 4px; font-size: 0.85rem; font-weight: 700; color: #475569; cursor: pointer; border-radius: 6px; transition: all 0.2s; white-space: nowrap; }
+    .tab-item.active { background: white; color: #1a73e8; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
     .tab-content { display: block; }
     
-    /* 🚚 배차 리스트 카드 레이아웃 완벽 보완 */
+    /* 🚚 배차 리스트 카드 레이아웃 (글자 겹침 차단) */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); text-align: left; border-left: 4px solid #1a73e8; cursor: pointer; transition: background 0.15s; overflow: hidden; }
     .dispatch-card:hover { background-color: #f8fafc; }
     
-    .card-main { padding: 14px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-    .card-info { flex: 1; min-width: 0; } /* 💥 텍스트가 버튼을 밀어내지 않도록 유연한 최소 너비 지정 */
+    .card-main { padding: 14px 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .card-info { flex: 1; min-width: 0; } /* 💥 텍스트 줄바꿈 강제 연동 */
     
     .card-info h4 { margin: 0 0 8px 0; font-size: 1.05rem; color: #1e293b; display: flex; align-items: center; gap: 6px; line-height: 1.3; }
     .order-tag { background: #e2e8f0; color: #475569; border-radius: 4px; padding: 2px 6px; font-size: 0.75rem; font-weight: bold; flex-shrink: 0; }
     
     .card-meta { font-size: 0.85rem; color: #475569; line-height: 1.5; }
-    .card-meta-item { display: flex; align-items: center; margin-bottom: 4px; gap: 4px; }
+    .card-meta-item { display: flex; align-items: center; margin-bottom: 4px; gap: 6px; }
     
-    /* 🌟 [핵심 개선] 기기별로 깨지던 이모지를 대체하는 세련된 텍스트 배지 디자인 */
-    .meta-label { display: inline-block; font-size: 0.7rem; font-weight: bold; padding: 2px 5px; border-radius: 4px; flex-shrink: 0; min-width: 32px; text-align: center; letter-spacing: -0.5px; }
-    .meta-label.prod { background-color: #e0f2fe; color: #0369a1; }  /* 파란색: 제품 배지 */
-    .meta-label.order { background-color: #f1f5f9; color: #475569; } /* 회색: 주문 배지 */
-    .meta-label.qty { background-color: #fef3c7; color: #b45309; }   /* 주황색: 수량 배지 */
+    /* 🌟 이모지 깨짐 방지용 전용 텍스트 태그 디자인 */
+    .meta-label { display: inline-block; font-size: 0.7rem; font-weight: bold; padding: 2px 5px; border-radius: 4px; flex-shrink: 0; min-width: 35px; text-align: center; letter-spacing: -0.5px; }
+    .meta-label.prod { background-color: #e0f2fe; color: #0369a1; }  
+    .meta-label.order { background-color: #f1f5f9; color: #475569; } 
+    .meta-label.qty { background-color: #fef3c7; color: #b45309; }   
     
     .meta-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; color: #334155; }
     
     .card-action { flex-shrink: 0; min-width: 90px; text-align: right; }
-    .btn-arrival { background-color: #1a73e8; color: white; border: none; padding: 9px 11px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; white-space: nowrap; font-family: 'Noto Sans KR', sans-serif; box-shadow: 0 2px 4px rgba(26,115,232,0.15); }
+    .btn-arrival { background-color: #1a73e8; color: white; border: none; padding: 9px 11px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; white-space: nowrap; font-family: 'Noto Sans KR', sans-serif; }
     .arrival-done { color: #16a34a; font-weight: bold; font-size: 0.8rem; background-color: #f0fdf4; padding: 6px 10px; border-radius: 6px; display: inline-block; border: 1px solid #bbf7d0; white-space: nowrap; }
     
     .card-detail { padding: 12px; border-top: 1px dashed #e2e8f0; background-color: #f8fafc; font-size: 0.85rem; color: #475569; }
     .detail-item { margin-bottom: 6px; line-height: 1.4; }
-    .detail-item:last-child { margin-bottom: 0; }
     
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; white-space: nowrap; }
-    th, td { padding: 10px 6px; border: 1px solid #e2e8f0; text-align: center; }
-    th { background-color: #f8f9fa; color: #333; }
-    .table-container { width: 100%; overflow-x: auto; }
+    /* 🌟 [월별 내역 겹침 완벽 해결] 가로 스크롤 컨테이너 가두리 */
+    .table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; background: white; }
+    table { width: 100%; min-width: 560px; border-collapse: collapse; } /* 💥 min-width가 표가 찌그러지는 것을 물리적으로 방지합니다 */
+    th, td { padding: 12px 6px; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; text-align: center; vertical-align: middle; font-size: 0.8rem; }
+    th { background-color: #f8f9fa; color: #333; font-weight: bold; border-bottom: 2px solid #cbd5e1; }
+    th:last-child, td:last-child { border-right: none; }
     
-    .btn-sm { padding: 4px 6px; font-size: 0.75rem; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; background: white; text-decoration: none; color: #333; font-family: 'Noto Sans KR', sans-serif; margin: 2px; }
-    .btn-sm.view { color: #1a73e8; border-color: #1a73e8; }
+    /* 🌟 보기 / 삭제 버튼이 세로로 정렬되면서 정중앙에 위치하도록 가두기 */
+    .grid-btn-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+    
+    .btn-sm { padding: 5px 8px; font-size: 0.75rem; border-radius: 4px; border: 1px solid #cbd5e1; cursor: pointer; background: white; text-decoration: none; color: #333; font-family: 'Noto Sans KR', sans-serif; display: inline-block; width: 45px; text-align: center; box-sizing: border-box; }
+    .btn-sm.view { color: #1a73e8; border-color: #1a73e8; font-weight: bold; }
     .btn-sm.danger { color: #d93025; border-color: #d93025; }
     .hidden { display: none !important; }
   </style>
@@ -96,7 +103,7 @@
   </div>
 
   <div id="changePwView" class="container hidden">
-    <h2>🔒 비밀번호 변경 안내</h2>
+    <h2>비밀번호 변경 안내</h2>
     <p class="subtitle" style="color: #d93025;">최초 로그인 시 비밀번호를 변경해야 합니다.</p>
     <input type="password" id="newPw" placeholder="새로운 비밀번호 입력" required>
     <input type="password" id="newPwConfirm" placeholder="새로운 비밀번호 확인" required>
@@ -107,7 +114,7 @@
   <div id="driverView" class="container wide hidden">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
       <div class="greeting-container">
-        <span class="role-badge">🚙 기사</span>
+        <span class="role-badge">기사</span>
         <span class="greeting-text"><span id="driverNameDisplay"></span>님</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px; background: #fff; padding: 2px 6px; border-radius: 6px; border: 1px solid #cbd5e1;">
@@ -116,21 +123,21 @@
     </div>
 
     <div class="tabs-nav">
-      <div class="tab-item active" id="tabBtn_dispatch" onclick="switchTab('dispatch')">🚚 배차일정</div>
-      <div class="tab-item" id="tabBtn_upload" onclick="switchTab('upload')">📸 기록등록</div>
-      <div class="tab-item" id="tabBtn_history" onclick="switchTab('history')">🗓️ 월별내역</div>
+      <div class="tab-item active" id="tabBtn_dispatch" onclick="switchTab('dispatch')">배차일정</div>
+      <div class="tab-item" id="tabBtn_upload" onclick="switchTab('upload')">기록등록</div>
+      <div class="tab-item" id="tabBtn_history" onclick="switchTab('history')">월별내역</div>
     </div>
 
     <div id="pane_dispatch" class="tab-content">
-      <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #1e293b;">📋 운행 목록 <span id="vehicleDisplay" style="font-size:0.8rem; color:#64748b; font-weight:normal;"></span></h3>
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #1e293b;">운행 목록 <span id="vehicleDisplay" style="font-size:0.8rem; color:#64748b; font-weight:normal;"></span></h3>
       <div id="dispatchListContainer">
         <p style="color:#888; font-size:0.85rem;">배차 데이터를 조회 중입니다...</p>
       </div>
     </div>
 
     <div id="pane_upload" class="tab-content hidden">
-      <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #1e293b;">📸 계기판 사진 등록</h3>
-      <label for="photoStage">📍 운행 단계</label>
+      <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #1e293b;">계기판 사진 등록</h3>
+      <label for="photoStage">운행 단계</label>
       <select id="photoStage">
         <option value="" disabled selected>--- 단계 선택 ---</option>
         <option value="1.자택 출발">1. 자택 출발</option>
@@ -138,7 +145,7 @@
         <option value="3.센터 복귀">3. 센터 복귀</option>
         <option value="4.자택 도착">4. 자택 도착</option>
       </select>
-      <label for="photoInput">📸 사진 파일 선택</label>
+      <label for="photoInput">사진 파일 선택</label>
       <input type="file" id="photoInput" accept="image/*">
       <button class="btn-solid" style="background-color: #188038;" onclick="uploadPhoto()">구글 드라이브 업로드</button>
       <p id="uploadMsg" style="font-size: 0.85rem; margin-top: 8px; text-align: center; font-weight: bold;"></p>
@@ -146,13 +153,14 @@
 
     <div id="pane_history" class="tab-content hidden">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #cbd5e1; padding-bottom: 6px; margin-bottom: 8px;">
-        <h3 style="margin: 0; font-size: 1rem; color: #1e293b;">🗓️ 월별 운행 증빙판</h3>
+        <h3 style="margin: 0; font-size: 1rem; color: #1e293b;">월별 운행 증빙판</h3>
         <input type="month" id="filterMonth" style="margin: 0; padding: 4px 6px; width: 110px; font-size:0.8rem;" onchange="renderPhotoGrid()">
       </div>
+      
       <div class="table-container">
         <table>
           <thead>
-            <tr><th style="width:50px;">날짜</th><th>출발</th><th>입차</th><th>복귀</th><th>도착</th></tr>
+            <tr><th style="width:55px;">날짜</th><th>출발</th><th>입차</th><th>복귀</th><th>도착</th></tr>
           </thead>
           <tbody id="gridTableBody"></tbody>
         </table>
@@ -163,7 +171,7 @@
   </div>
 
   <div id="adminView" class="container hidden">
-    <p>관리자 화면 유지 모드</p>
+    <p>관리자 제어 시스템 가동 중</p>
     <button class="back-text" onclick="logout()">로그아웃</button>
   </div>
 
@@ -188,11 +196,8 @@
 
     function toggleCardDetail(cardEl) {
       const detailZone = cardEl.querySelector('.card-detail');
-      if(detailZone.classList.contains('hidden')) {
-        detailZone.classList.remove('hidden');
-      } else {
-        detailZone.classList.add('hidden');
-      }
+      if(detailZone.classList.contains('hidden')) { detailZone.classList.remove('hidden'); } 
+      else { detailZone.classList.add('hidden'); }
     }
 
     function markArrival(event, orderNum, orderSeq) {
@@ -202,18 +207,11 @@
         const targetDate = document.getElementById('masterDate').value;
         const btn = event.target;
         
-        btn.disabled = true;
-        btn.innerText = "기입 중...";
+        btn.disabled = true; btn.innerText = "기입 중...";
         
         callGasApi('recordArrivalTime', { driverId, targetDate, orderNum, orderSeq }).then(function(res) {
-          if(res.success) {
-            alert("⏰ 완료 (" + res.arrivalTime + ")");
-            loadDispatchList(); 
-          } else {
-            alert("처리 실패: " + res.message);
-            btn.disabled = false;
-            btn.innerText = "배송지도착";
-          }
+          if(res.success) { alert("완료되었습니다."); loadDispatchList(); } 
+          else { alert("처리 실패: " + res.message); btn.disabled = false; btn.innerText = "배송지 도착"; }
         });
       }
     }
@@ -231,8 +229,7 @@
       const mDate = document.getElementById('masterDate').value;
       if(mDate) {
         document.getElementById('filterMonth').value = mDate.substring(0, 7);
-        renderPhotoGrid();
-        loadDispatchList();
+        renderPhotoGrid(); loadDispatchList();
       }
     }
 
@@ -267,13 +264,10 @@
       if(role === 'driver') {
         document.getElementById('driverNameDisplay').innerText = name;
         document.getElementById('driverView').classList.remove('hidden');
-        initializeDates();
-        loadDispatchList(); 
-        loadDriverPhotos(); 
+        initializeDates(); loadDispatchList(); loadDriverPhotos(); 
       }
     }
 
-    // 🌟 [디자인 변경점] 이모지 대신 고정 폭 미니 배지 레이아웃 렌더링
     function loadDispatchList() {
       const driverId = localStorage.getItem('currentUser');
       const targetDate = document.getElementById('masterDate').value;
@@ -286,11 +280,10 @@
       callGasApi('getDriverDispatch', { driverId, targetDate }).then(function(res) {
         if(res.success) {
           if(res.data.length === 0) {
-            container.innerHTML = `<p style="color:#64748b; background: #f8fafc; padding: 15px; border-radius:8px; border:1px solid #e2e8f0; font-size:0.85rem; text-align:center;">${res.message || '금일 스케줄이 없습니다.'}</p>`;
+            container.innerHTML = `<p style="color:#64748b; background: #f8fafc; padding: 15px; border-radius:8px; border:1px solid #e2e8f0; font-size:0.85rem; text-align:center;">금일 배차 스케줄이 없습니다.</p>`;
             if(res.vehicle) vehicleDisplay.innerText = `[${res.vehicle}]`;
           } else {
-            vehicleDisplay.innerText = `[${res.vehicle}]`;
-            container.innerHTML = '';
+            vehicleDisplay.innerText = `[${res.vehicle}]`; container.innerHTML = '';
             
             res.data.forEach(function(item) {
               const card = document.createElement('div');
@@ -298,7 +291,7 @@
               card.setAttribute('onclick', 'toggleCardDetail(this)'); 
               
               let actionHtml = item.arrivalTime ? 
-                `<span class="arrival-done">✅ ${item.arrivalTime}</span>` : 
+                `<span class="arrival-done">도착 ${item.arrivalTime}</span>` : 
                 `<button class="btn-arrival" onclick="markArrival(event, '${item.orderNum}', '${item.order}')">배송지 도착</button>`;
 
               card.innerHTML = `
@@ -306,29 +299,18 @@
                   <div class="card-info">
                     <h4><span class="order-tag">${item.order}</span> <span style="word-break: break-all; font-weight:700;">${item.clientName}</span></h4>
                     <div class="card-meta">
-                      <div class="card-meta-item">
-                        <span class="meta-label prod">제품</span>
-                        <span class="meta-value">${item.prodName || '-'}</span>
-                      </div>
-                      <div class="card-meta-item">
-                        <span class="meta-label order">주문</span>
-                        <span class="meta-value" style="font-family: monospace; font-size:0.9rem;">${item.orderNum}</span>
-                      </div>
-                      <div class="card-meta-item">
-                        <span class="meta-label qty">수량</span>
-                        <span class="meta-value" style="color: #b45309; font-weight:700;">${item.qty}개</span>
-                      </div>
+                      <div class="card-meta-item"><span class="meta-label prod">제품</span><span class="meta-value">${item.prodName || '-'}</span></div>
+                      <div class="card-meta-item"><span class="meta-label order">주문</span><span class="meta-value" style="font-family: monospace;">${item.orderNum}</span></div>
+                      <div class="card-meta-item"><span class="meta-label qty">수량</span><span class="meta-value" style="color: #b45309; font-weight:700;">${item.qty}개</span></div>
                     </div>
                   </div>
-                  <div class="card-action">
-                    ${actionHtml}
-                  </div>
+                  <div class="card-action">${actionHtml}</div>
                 </div>
                 <div class="card-detail hidden">
-                  <div class="detail-item"><strong>📍 주소:</strong> ${item.clientAddr}</div>
-                  <div class="detail-item"><strong>📞 연락처:</strong> ${item.clientPhone}</div>
-                  <div class="detail-item" style="color:#d93025; font-weight:500;"><strong>💡 비고:</strong> ${item.remarks || '없음'}</div>
-                  <div style="text-align:right; font-size:0.75rem; color:#94a3b8; margin-top:6px;">⬆ 다시 접으려면 터치</div>
+                  <div class="detail-item"><strong>주소:</strong> ${item.clientAddr}</div>
+                  <div class="detail-item"><strong>연락처:</strong> ${item.clientPhone}</div>
+                  <div class="detail-item" style="color:#d93025; font-weight:500;"><strong>비고:</strong> ${item.remarks || '없음'}</div>
+                  <div style="text-align:right; font-size:0.75rem; color:#94a3b8; margin-top:6px;">상세 닫기: 카드를 다시 터치하세요.</div>
                 </div>
               `;
               container.appendChild(card);
@@ -341,10 +323,7 @@
     function loadDriverPhotos() {
       const driverId = localStorage.getItem('currentUser');
       callGasApi('getDriverPhotos', { driverId }).then(function(response) {
-        if(response && response.success) {
-          globalPhotosArray = response.data || [];
-          renderPhotoGrid();
-        }
+        if(response && response.success) { globalPhotosArray = response.data || []; renderPhotoGrid(); }
       });
     }
 
@@ -375,7 +354,12 @@
           const td = document.createElement('td');
           const p = gridData[date][stageName];
           if(p) {
-            td.innerHTML = `<a href="${p.url}" target="_blank" class="btn-sm view">보기</a><br><button class="btn-sm danger" style="margin-top:4px;" onclick="deletePhoto('${p.fileId}')">삭제</button>`;
+            // 🌟 보기/삭제 버튼 세로 정렬 및 안전 가두리 컴포넌트 적용
+            td.innerHTML = `
+              <div class="grid-btn-zone">
+                <a href="${p.url}" target="_blank" class="btn-sm view">보기</a>
+                <button class="btn-sm danger" onclick="deletePhoto('${p.fileId}')">삭제</button>
+              </div>`;
           } else { td.innerHTML = '<span style="color:#ccc;">-</span>'; }
           tr.appendChild(td);
         });
@@ -395,7 +379,7 @@
       reader.onload = function(e) {
         callGasApi('uploadDashboardPhoto', { base64Data: e.target.result, fileName: file.name, driverId, stage, customDate: dateVal }).then(function(res) {
           if(res.success) {
-            document.getElementById('uploadMsg').innerText = "✅ 전송 성공!";
+            document.getElementById('uploadMsg').innerText = "전송 완료";
             document.getElementById('photoInput').value = ''; document.getElementById('photoStage').selectedIndex = 0; 
             loadDriverPhotos(); 
           } else { document.getElementById('uploadMsg').innerText = "오류 발생"; }

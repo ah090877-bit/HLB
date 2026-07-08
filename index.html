@@ -8,7 +8,12 @@
   
   <style>
     body { font-family: 'Pretendard', sans-serif; background-color: #f4f6f9; margin: 0; padding: 12px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; color: #333; }
-    .container { background: white; padding: 2rem 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 450px; text-align: center; margin-top: 3vh; box-sizing: border-box; }
+    
+    /* 🌟 화면 겹침 원천 차단을 위한 CSS 구조 개선 */
+    .view-container { display: none; width: 100%; box-sizing: border-box; }
+    .view-container.active { display: block; animation: fadeIn 0.3s ease-in-out; }
+    
+    .container { background: white; padding: 2rem 1.5rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; margin: 3vh auto 0; text-align: center; }
     .container.wide { max-width: 650px; text-align: left; padding: 1.2rem; }
     .container.admin-wide { max-width: 1000px; padding: 20px; text-align: left; margin-top: 1vh; }
 
@@ -24,16 +29,17 @@
     .tabs-nav { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; margin-bottom: 15px; }
     .tab-item { flex: 1; text-align: center; padding: 11px 4px; font-size: 0.85rem; font-weight: 600; color: #475569; cursor: pointer; border-radius: 6px; }
     .tab-item.active { background: white; color: #1a73e8; box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
-    .hidden { display: none !important; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
 
-    /* 기사님 화면 스타일 */
+    /* 기사님 화면 카드 스타일 */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #1a73e8; padding:14px;}
     .dispatch-card h4 { margin: 0 0 8px 0; font-size: 1.05rem; }
     .card-meta-item { font-size: 0.85rem; margin-bottom: 4px; color:#475569;}
     .btn-arrival { background-color: #1a73e8; color: white; padding: 8px 12px; border-radius: 6px; border:none; font-size: 0.75rem; cursor: pointer; float:right;}
     .arrival-done { color: #16a34a; background-color: #f0fdf4; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid #bbf7d0; float:right;}
 
-    /* 🌟 관리자 대시보드 전용 스타일 */
+    /* 관리자 대시보드 스타일 */
     .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
@@ -41,10 +47,8 @@
     .stat-card .num { font-size: 2rem; font-weight: 800; color: #1e293b; }
     .stat-card.alert { border-color: #fca5a5; background: #fef2f2; }
     .stat-card.alert .num { color: #dc2626; }
-    
     .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
     .search-box input { margin: 0; flex: 1; }
-    
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem; background:white;}
     th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; }
     th { background-color: #f1f5f9; font-weight: 700; color: #334155; }
@@ -58,11 +62,13 @@
     .modal-btn { flex: 1; padding: 12px; border-radius: 8px; border:none; font-weight:bold; cursor: pointer; }
     .modal-btn.cancel { background: #f1f5f9; color: #475569; }
     .modal-btn.confirm { background: #1a73e8; color: white; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   </style>
 </head>
 <body>
 
-  <div id="customConfirm" class="custom-modal hidden">
+  <div id="customConfirm" class="custom-modal view-container">
     <div class="modal-box">
       <p id="confirmMessage"></p>
       <div class="modal-btn-group">
@@ -72,150 +78,161 @@
     </div>
   </div>
 
-  <div id="roleSelectionView" class="container">
-    <h2>운행 관제 시스템</h2>
-    <p class="subtitle">접속하실 계정 유형을 선택해 주세요.</p>
-    <button class="btn-outline blue" onclick="showLoginForm('admin')">관리자 / 매니저 로그인</button>
-    <button class="btn-outline green" onclick="showLoginForm('driver')">차량 기사님 로그인</button>
+  <div id="roleSelectionView" class="view-container">
+    <div class="container">
+      <h2>운행 관제 시스템</h2>
+      <p class="subtitle">접속하실 계정 유형을 선택해 주세요.</p>
+      <button class="btn-outline blue" onclick="showLoginForm('admin')">관리자 / 매니저 로그인</button>
+      <button class="btn-outline green" onclick="showLoginForm('driver')">차량 기사님 로그인</button>
+    </div>
   </div>
 
-  <div id="loginView" class="container hidden">
-    <h2>로그인</h2>
-    <input type="text" id="userId" placeholder="아이디" required>
-    <input type="password" id="userPw" placeholder="비밀번호" required>
-    <button class="btn-solid" onclick="attemptLogin()">접속하기</button>
-    <button class="back-text" onclick="location.reload()">← 이전 화면으로</button>
+  <div id="loginView" class="view-container">
+    <div class="container">
+      <h2>로그인</h2>
+      <input type="text" id="userId" placeholder="아이디" required>
+      <input type="password" id="userPw" placeholder="비밀번호" required>
+      <button class="btn-solid" onclick="attemptLogin()">접속하기</button>
+      <button class="back-text" onclick="goBackToSelection()">← 이전 화면으로</button>
+    </div>
   </div>
 
-  <div id="driverView" class="container wide hidden">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
-      <div><span style="background:#188038; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">기사</span> <strong id="driverNameDisplay"></strong>님</div>
-      <input type="date" id="masterDate" style="width:auto; margin:0; padding:4px; font-size:0.85rem;" onchange="syncDateChange()">
-    </div>
-    <div class="tabs-nav">
-      <div class="tab-item active" id="tabBtn_dispatch" onclick="switchTab('dispatch')">배차일정</div>
-      <div class="tab-item" id="tabBtn_upload" onclick="switchTab('upload')">기록등록</div>
-      <div class="tab-item" id="tabBtn_history" onclick="switchTab('history')">월별내역</div>
-    </div>
-    
-    <div id="pane_dispatch" class="tab-content">
-      <h3 style="margin: 0 0 8px 0; font-size: 1rem;">운행 목록 <span id="vehicleDisplay" style="font-size:0.8rem; color:#64748b;"></span></h3>
-      <div id="dispatchListContainer"></div>
-    </div>
-    
-    <div id="pane_upload" class="tab-content hidden">
-      <label>운행 단계</label>
-      <select id="photoStage"><option value="">선택</option><option value="1.출발">출발</option><option value="2.입차">입차</option><option value="3.도착">도착</option></select>
-      <label>사진 선택</label>
-      <input type="file" id="photoInput" accept="image/*">
-      <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">안전 초고속 업로드</button>
-    </div>
-
-    <div id="pane_history" class="tab-content hidden">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <h3 style="margin: 0; font-size: 1rem;">월별 증빙판</h3>
-        <input type="month" id="filterMonth" style="margin:0; width: 120px; font-size:0.8rem;" onchange="renderPhotoGrid()">
+  <div id="driverView" class="view-container">
+    <div class="container wide">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
+        <div><span style="background:#188038; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">기사</span> <strong id="driverNameDisplay"></strong>님</div>
+        <input type="date" id="masterDate" style="width:auto; margin:0; padding:4px; font-size:0.85rem;" onchange="syncDateChange()">
       </div>
-      <table style="table-layout: fixed;">
-        <thead><tr><th style="width:20%">날짜</th><th style="width:20%">출발</th><th style="width:20%">입차</th><th style="width:20%">복귀</th><th style="width:20%">도착</th></tr></thead>
-        <tbody id="gridTableBody"></tbody>
-      </table>
-    </div>
-    <button class="back-text" onclick="localStorage.clear(); location.reload();">로그아웃</button>
-  </div>
-
-  <div id="adminView" class="container admin-wide hidden">
-    <div class="admin-header">
-      <div><h2 style="margin:0;">종합 관제 대시보드</h2><span style="font-size:0.85rem; color:#64748b;">관리자 계정 접속 중</span></div>
-      <button class="btn-solid" style="width:auto; padding:8px 12px; margin:0;" onclick="localStorage.clear(); location.reload();">로그아웃</button>
-    </div>
-
-    <div class="tabs-nav">
-      <div class="tab-item active" id="adminTabBtn_dash" onclick="switchAdminTab('dash')">당일 운행 모니터링</div>
-      <div class="tab-item" id="adminTabBtn_analytics" onclick="switchAdminTab('analytics')">월별 통계 분석</div>
-      <div class="tab-item" id="adminTabBtn_manage" onclick="switchAdminTab('manage')">기사 계정 관리</div>
-    </div>
-
-    <div id="adminPane_dash" class="tab-content">
-      <div style="text-align:right; margin-bottom:10px;">
-        <input type="date" id="adminDate" style="width:150px; padding:6px; font-weight:bold; display:inline-block;" onchange="loadAdminDashboard()">
+      <div class="tabs-nav">
+        <div class="tab-item active" id="tabBtn_dispatch" onclick="switchTab('dispatch')">배차일정</div>
+        <div class="tab-item" id="tabBtn_upload" onclick="switchTab('upload')">기록등록</div>
+        <div class="tab-item" id="tabBtn_history" onclick="switchTab('history')">월별내역</div>
       </div>
       
-      <div class="stats-grid">
-        <div class="stat-card"><h3>금일 호차 수</h3><div class="num" id="statVehicle">0</div></div>
-        <div class="stat-card"><h3>금일 총 착수</h3><div class="num" id="statTotal">0</div></div>
-        <div class="stat-card"><h3>완료 착수</h3><div class="num" style="color:#16a34a;" id="statDone">0</div></div>
-        <div class="stat-card alert"><h3>도착시간 누락</h3><div class="num" id="statMissing">0</div></div>
+      <div id="pane_dispatch" class="tab-content active">
+        <h3 style="margin: 0 0 8px 0; font-size: 1rem;">운행 목록 <span id="vehicleDisplay" style="font-size:0.8rem; color:#64748b;"></span></h3>
+        <div id="dispatchListContainer"></div>
       </div>
       
-      <div class="search-box">
-        <input type="text" id="adminSearchName" placeholder="기사 이름 또는 호차 검색..." onkeyup="filterAdminTable()">
+      <div id="pane_upload" class="tab-content">
+        <label>운행 단계</label>
+        <select id="photoStage"><option value="">선택</option><option value="1.출발">출발</option><option value="2.입차">입차</option><option value="3.도착">도착</option></select>
+        <label>사진 선택</label>
+        <input type="file" id="photoInput" accept="image/*">
+        <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">안전 초고속 업로드</button>
       </div>
 
-      <table>
-        <thead>
-          <tr><th>호차</th><th>기사명</th><th>연락처</th><th>배송지 명칭</th><th>도착시간</th></tr>
-        </thead>
-        <tbody id="adminDispatchBody"><tr><td colspan="5">데이터를 불러오는 중입니다...</td></tr></tbody>
-      </table>
-    </div>
-
-    <div id="adminPane_analytics" class="tab-content hidden">
-      <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="margin:0;">월별 운행 통계</h3>
-        <input type="month" id="adminMonthStats" style="width:130px; margin:0;" onchange="loadAdminAnalytics()">
-      </div>
-      <table>
-        <thead><tr><th>운행 일자</th><th>가동 호차 수</th><th>총 착수(건)</th><th>완료(건)</th><th>누락(건)</th></tr></thead>
-        <tbody id="adminAnalyticsBody"></tbody>
-      </table>
-    </div>
-
-    <div id="adminPane_manage" class="tab-content hidden">
-      <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0;">
-        <h3 style="margin:0 0 10px 0; font-size:1rem;">신규 기사 등록</h3>
-        <div style="display:flex; gap:10px;">
-          <input type="text" id="newDriverName" placeholder="이름">
-          <input type="text" id="newDriverPhone" placeholder="휴대폰 (010-1234-5678)">
-          <input type="text" id="newDriverVehicle" placeholder="호차번호">
-          <button class="btn-solid" style="width:100px; margin:8px 0;" onclick="createDriver()">등록</button>
+      <div id="pane_history" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 1rem;">월별 증빙판</h3>
+          <input type="month" id="filterMonth" style="margin:0; width: 120px; font-size:0.8rem;" onchange="renderPhotoGrid()">
         </div>
+        <table style="table-layout: fixed;">
+          <thead><tr><th style="width:20%">날짜</th><th style="width:20%">출발</th><th style="width:20%">입차</th><th style="width:20%">복귀</th><th style="width:20%">도착</th></tr></thead>
+          <tbody id="gridTableBody"></tbody>
+        </table>
       </div>
-      <table>
-        <thead><tr><th>이름</th><th>아이디(뒤8자리)</th><th>호차</th></tr></thead>
-        <tbody id="adminDriverBody"></tbody>
-      </table>
+      <button class="back-text" onclick="logout()">로그아웃</button>
     </div>
+  </div>
 
+  <div id="adminView" class="view-container">
+    <div class="container admin-wide">
+      <div class="admin-header">
+        <div><h2 style="margin:0;">종합 관제 대시보드</h2><span style="font-size:0.85rem; color:#64748b;">관리자 계정 접속 중</span></div>
+        <button class="btn-solid" style="width:auto; padding:8px 12px; margin:0;" onclick="logout()">로그아웃</button>
+      </div>
+
+      <div class="tabs-nav">
+        <div class="tab-item active" id="adminTabBtn_dash" onclick="switchAdminTab('dash')">당일 운행 모니터링</div>
+        <div class="tab-item" id="adminTabBtn_analytics" onclick="switchAdminTab('analytics')">월별 통계 분석</div>
+        <div class="tab-item" id="adminTabBtn_manage" onclick="switchAdminTab('manage')">기사 계정 관리</div>
+      </div>
+
+      <div id="adminPane_dash" class="tab-content active">
+        <div style="text-align:right; margin-bottom:10px;">
+          <input type="date" id="adminDate" style="width:150px; padding:6px; font-weight:bold; display:inline-block;" onchange="loadAdminDashboard()">
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card"><h3>금일 호차 수</h3><div class="num" id="statVehicle">0</div></div>
+          <div class="stat-card"><h3>금일 총 착수</h3><div class="num" id="statTotal">0</div></div>
+          <div class="stat-card"><h3>완료 착수</h3><div class="num" style="color:#16a34a;" id="statDone">0</div></div>
+          <div class="stat-card alert"><h3>도착시간 누락</h3><div class="num" id="statMissing">0</div></div>
+        </div>
+        
+        <div class="search-box">
+          <input type="text" id="adminSearchName" placeholder="기사 이름 또는 호차 검색..." onkeyup="filterAdminTable()">
+        </div>
+
+        <table>
+          <thead>
+            <tr><th>호차</th><th>기사명</th><th>연락처</th><th>배송지 명칭</th><th>도착시간</th></tr>
+          </thead>
+          <tbody id="adminDispatchBody"><tr><td colspan="5">데이터를 불러오는 중입니다...</td></tr></tbody>
+        </table>
+      </div>
+
+      <div id="adminPane_analytics" class="tab-content">
+        <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="margin:0;">월별 운행 통계</h3>
+          <input type="month" id="adminMonthStats" style="width:130px; margin:0;" onchange="loadAdminAnalytics()">
+        </div>
+        <table>
+          <thead><tr><th>운행 일자</th><th>가동 호차 수</th><th>총 착수(건)</th><th>완료(건)</th><th>누락(건)</th></tr></thead>
+          <tbody id="adminAnalyticsBody"></tbody>
+        </table>
+      </div>
+
+      <div id="adminPane_manage" class="tab-content">
+        <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0;">
+          <h3 style="margin:0 0 10px 0; font-size:1rem;">신규 기사 등록</h3>
+          <div style="display:flex; gap:10px;">
+            <input type="text" id="newDriverName" placeholder="이름">
+            <input type="text" id="newDriverPhone" placeholder="휴대폰 (010-1234-5678)">
+            <input type="text" id="newDriverVehicle" placeholder="호차번호">
+            <button class="btn-solid" style="width:100px; margin:8px 0;" onclick="createDriver()">등록</button>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>이름</th><th>아이디(뒤8자리)</th><th>호차</th></tr></thead>
+          <tbody id="adminDriverBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script>
     const BACKEND_URL = '/api/action';
     let adminDailyData = []; 
     let globalPhotosArray = [];
+    let selectedLoginRole = '';
 
-    // 에러 팝업을 띄우는 함수
+    // 🌟 핵심 방어 코드: 무조건 단 하나의 화면(view)만 표시하도록 강제합니다.
+    function switchMainView(viewId) {
+      document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+    }
+
+    // 팝업 관련 함수
     function showCustomAlert(msg, onConfirm = null) {
       document.getElementById('confirmMessage').innerText = msg;
-      document.getElementById('customConfirm').classList.remove('hidden');
+      document.getElementById('customConfirm').classList.add('active');
       document.getElementById('confirmCancelBtn').style.display = onConfirm ? 'block' : 'none';
       
       document.getElementById('confirmYesBtn').onclick = function() {
-        document.getElementById('customConfirm').classList.add('hidden');
+        document.getElementById('customConfirm').classList.remove('active');
         if(onConfirm) onConfirm();
       };
     }
-    function closeConfirm() { document.getElementById('customConfirm').classList.add('hidden'); }
+    function closeConfirm() { document.getElementById('customConfirm').classList.remove('active'); }
 
-    // 🌟 통신 중 에러 발생 시 명확히 팝업으로 보여주도록 수정
+    // 🌟 undefined 에러 원천 차단 통신 함수
     function callGasApi(action, data = {}) {
       return fetch(BACKEND_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, ...data }) })
       .then(res => res.json())
       .then(json => {
-        if(!json.success && json.message) {
-          // 서버에서 명확히 전달한 에러(message)를 반환
-          return { success: false, message: json.message };
-        }
+        if(!json.success) return { success: false, message: json.message || json.error || "알 수 없는 오류가 발생했습니다." };
         return json;
       })
       .catch(err => {
@@ -223,16 +240,24 @@
       });
     }
 
+    // 초기 화면 진입 및 로그아웃
+    function goBackToSelection() { switchMainView('roleSelectionView'); }
+    function logout() { localStorage.clear(); location.reload(); }
+
     function showLoginForm(role) {
-      document.getElementById('roleSelectionView').classList.add('hidden');
-      document.getElementById('loginView').classList.remove('hidden');
-      document.getElementById('loginView').dataset.role = role;
+      selectedLoginRole = role;
+      document.getElementById('userId').value = '';
+      document.getElementById('userPw').value = '';
+      switchMainView('loginView');
     }
 
     function attemptLogin() {
       const id = document.getElementById('userId').value.trim(); const pw = document.getElementById('userPw').value;
-      if(!id || !pw) return;
+      if(!id || !pw) return showCustomAlert("아이디와 비밀번호를 입력해주세요.");
+      
+      showCustomAlert("인증 중입니다..."); // 로그인 지연 시 답답함 해소용 팝업
       callGasApi('verifyLogin', { id, password: pw }).then(res => {
+        closeConfirm();
         if(res.success) loginSuccess(id, res.role, res.name);
         else showCustomAlert(res.message);
       });
@@ -240,16 +265,17 @@
 
     function loginSuccess(id, role, name) {
       localStorage.setItem('currentUser', id); localStorage.setItem('userRole', role); localStorage.setItem('userName', name);
-      document.getElementById('loginView').classList.add('hidden');
       
       if(role === 'driver') {
         document.getElementById('driverNameDisplay').innerText = name;
-        document.getElementById('driverView').classList.remove('hidden');
+        switchMainView('driverView');
+        
         document.getElementById('masterDate').value = new Date().toISOString().substring(0,10);
         document.getElementById('filterMonth').value = new Date().toISOString().substring(0,7);
         loadDispatchList(); 
       } else if (role === 'admin' || role === 'manager') {
-        document.getElementById('adminView').classList.remove('hidden');
+        switchMainView('adminView');
+        
         document.getElementById('adminDate').value = new Date().toISOString().substring(0,10);
         document.getElementById('adminMonthStats').value = new Date().toISOString().substring(0,7);
         loadAdminDashboard();
@@ -259,10 +285,10 @@
     // --- 기사님 기능 ---
     function switchTab(tab) {
       ['dispatch','upload','history'].forEach(t => {
-        document.getElementById('pane_'+t).classList.add('hidden');
+        document.getElementById('pane_'+t).classList.remove('active');
         document.getElementById('tabBtn_'+t).classList.remove('active');
       });
-      document.getElementById('pane_'+tab).classList.remove('hidden');
+      document.getElementById('pane_'+tab).classList.add('active');
       document.getElementById('tabBtn_'+tab).classList.add('active');
       if(tab === 'history') loadDriverPhotos();
     }
@@ -271,10 +297,11 @@
 
     function loadDispatchList() {
       const targetDate = document.getElementById('masterDate').value;
-      document.getElementById('dispatchListContainer').innerHTML = '로딩중...';
+      document.getElementById('dispatchListContainer').innerHTML = '<p style="padding:15px; text-align:center;">데이터를 불러오는 중입니다...</p>';
+      
       callGasApi('getDriverDispatch', { driverId: localStorage.getItem('currentUser'), targetDate }).then(res => {
         if(res.success) {
-          if(res.data.length === 0) document.getElementById('dispatchListContainer').innerHTML = `<p style="padding:15px; text-align:center;">배차 없음</p>`;
+          if(res.data.length === 0) document.getElementById('dispatchListContainer').innerHTML = `<p style="padding:15px; text-align:center; color:#64748b;">배차 스케줄이 없습니다.</p>`;
           else {
             document.getElementById('vehicleDisplay').innerText = `[${res.vehicle}]`;
             let html = '';
@@ -284,7 +311,10 @@
             });
             document.getElementById('dispatchListContainer').innerHTML = html;
           }
-        } else showCustomAlert(res.message); // undefined 대신 정확한 에러 팝업 발생
+        } else {
+          // 🌟 undefined 대신 서버 메시지를 정확하게 출력
+          document.getElementById('dispatchListContainer').innerHTML = `<p style="padding:15px; text-align:center; color:#dc2626; font-weight:bold;">조회 실패: ${res.message}</p>`;
+        }
       });
     }
 
@@ -301,7 +331,7 @@
       const fileInput = document.getElementById('photoInput');
       const stage = document.getElementById('photoStage').value;
       if(!stage || !fileInput.files[0]) return showCustomAlert('단계와 사진을 선택하세요.');
-      showCustomAlert('사진을 압축하고 안전하게 업로드합니다.\n잠시만 기다려주세요!');
+      showCustomAlert('사진을 압축하고 업로드합니다.\n잠시만 기다려주세요!');
       
       const reader = new FileReader();
       reader.onload = e => {
@@ -317,8 +347,8 @@
             base64Data: canvas.toDataURL('image/jpeg', 0.6), fileName: 'photo.jpg', 
             driverId: localStorage.getItem('currentUser'), stage: stage, customDate: document.getElementById('masterDate').value 
           }).then(res => {
-            if(res.success) { showCustomAlert("업로드 완료!"); fileInput.value = ''; }
-            else showCustomAlert(res.message); // 500 에러 대신 정확한 원인 표시
+            if(res.success) { showCustomAlert("업로드 성공!"); fileInput.value = ''; }
+            else showCustomAlert(res.message);
           });
         };
         img.src = e.target.result;
@@ -354,20 +384,20 @@
     }
 
     function deleteP(fileId) {
-      showCustomAlert('삭제할까요?', () => {
+      showCustomAlert('이 사진을 삭제하시겠습니까?', () => {
         callGasApi('deleteDriverPhoto', { fileId, driverId: localStorage.getItem('currentUser') }).then(res => {
           if(res.success) loadDriverPhotos();
         });
       });
     }
 
-    // --- 🌟 관리자 기능 ---
+    // --- 관리자 기능 ---
     function switchAdminTab(tab) {
       ['dash','analytics','manage'].forEach(t => {
-        document.getElementById('adminPane_'+t).classList.add('hidden');
+        document.getElementById('adminPane_'+t).classList.remove('active');
         document.getElementById('adminTabBtn_'+t).classList.remove('active');
       });
-      document.getElementById('adminPane_'+tab).classList.remove('hidden');
+      document.getElementById('adminPane_'+tab).classList.add('active');
       document.getElementById('adminTabBtn_'+tab).classList.add('active');
 
       if(tab === 'manage') loadAdminDriverList();
@@ -380,7 +410,7 @@
       callGasApi('getAdminDailyStatus', { targetDate }).then(res => {
         if(res.success) {
           adminDailyData = res.data;
-          document.getElementById('statVehicle').innerText = res.vehicleCount || 0; // 금일 가동 호차 수 반영
+          document.getElementById('statVehicle').innerText = res.vehicleCount || 0; 
           filterAdminTable(); 
         } else {
           document.getElementById('adminDispatchBody').innerHTML = `<tr><td colspan="5" style="color:red;">${res.message}</td></tr>`;
@@ -403,7 +433,6 @@
         const tr = document.createElement('tr');
         if(!item.arrivalTime) tr.className = 'row-missing';
         
-        // 🌟 요청: 주소는 빼고 이름(clientName)만 노출
         tr.innerHTML = `
           <td>${item.vehicle}</td>
           <td><strong>${item.driverName}</strong></td>
@@ -420,7 +449,6 @@
       if(total === 0) tbody.innerHTML = '<tr><td colspan="5">해당 날짜에 배차 데이터가 없습니다.</td></tr>';
     }
 
-    // 🌟 월별 통계 분석 기능
     function loadAdminAnalytics() {
       const targetMonth = document.getElementById('adminMonthStats').value;
       const tbody = document.getElementById('adminAnalyticsBody');
@@ -469,9 +497,17 @@
       });
     }
 
+    // 🌟 초기 실행 시 캐시로 인한 오류 방지
     window.onload = function() {
-      const role = localStorage.getItem('userRole');
-      if (role) loginSuccess(localStorage.getItem('currentUser'), role, localStorage.getItem('userName'));
+      const storedId = localStorage.getItem('currentUser');
+      const storedRole = localStorage.getItem('userRole');
+      const storedName = localStorage.getItem('userName');
+      
+      if (storedId && storedRole && storedName) {
+        loginSuccess(storedId, storedRole, storedName);
+      } else {
+        switchMainView('roleSelectionView');
+      }
     };
   </script>
 </body>

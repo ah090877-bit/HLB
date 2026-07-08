@@ -172,8 +172,8 @@
   </div>
 
   <script>
-    // 🚨 반드시 본인의 앱스 스크립트 '새 배포' URL로 변경해 주세요!
-    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyiEQBiKc7-DGPQoFEixbC1OMgMZ1fB3nto3D98V-mUXTYbEx9NjMsrM_aqV0rLfebK7Q/exec';
+    // 🌟 핵심 변경: 외부 앱스 스크립트 URL을 버리고 내 서버의 API 경로로 직접 통신!
+    const BACKEND_URL = '/api/action';
     
     let globalPhotosArray = []; 
     let isPhotosLoaded = false;
@@ -181,15 +181,21 @@
     let tempLoginId = '';
     let tempLoginName = '';
 
-    // 🌟 1. 통신 안정화 및 에러 핸들링 보강
+    // 🌟 통신 함수가 Node.js / Vercel 환경에 맞게 아주 깔끔해졌습니다.
     function callGasApi(action, data = {}) {
-      return fetch('/api/action', {
+      return fetch(BACKEND_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' }, // 당당하게 JSON 포맷 전송
         body: JSON.stringify({ action, ...data })
       })
-      .then(res => res.json())
-      .catch(err => ({ success: false, error: err.toString() }));
+      .then(res => {
+        if (!res.ok) throw new Error("서버 상태 이상 (" + res.status + ")");
+        return res.json(); // 텍스트 우회 없이 바로 JSON으로 받습니다.
+      })
+      .catch(err => {
+        console.error("API 호출 실패:", err);
+        return { success: false, error: err.message || "네트워크 연결 문제 발생" };
+      });
     }
 
     function switchTab(tabName) {
@@ -346,18 +352,9 @@
                   <div class="card-info">
                     <h4><span class="order-tag">${item.order}</span> <span style="word-break: break-all; font-weight:700;">${item.clientName}</span></h4>
                     <div class="card-meta">
-                      <div class="card-meta-item">
-                        <span class="meta-label order">주문</span>
-                        <span class="meta-value eng-num">${item.orderNum}</span>
-                      </div>
-                      <div class="card-meta-item">
-                        <span class="meta-label prod">제품</span>
-                        <span class="meta-value">${item.prodName || '-'}</span>
-                      </div>
-                      <div class="card-meta-item">
-                        <span class="meta-label qty">수량</span>
-                        <span class="meta-value eng-num" style="color: #b45309;">${item.qty}개</span>
-                      </div>
+                      <div class="card-meta-item"><span class="meta-label order">주문</span><span class="meta-value eng-num">${item.orderNum}</span></div>
+                      <div class="card-meta-item"><span class="meta-label prod">제품</span><span class="meta-value">${item.prodName || '-'}</span></div>
+                      <div class="card-meta-item"><span class="meta-label qty">수량</span><span class="meta-value eng-num" style="color: #b45309;">${item.qty}개</span></div>
                     </div>
                   </div>
                   <div class="card-action">${actionHtml}</div>
@@ -372,7 +369,10 @@
               container.appendChild(card);
             });
           }
-        } else { container.innerHTML = `<p style="color:#d93025; font-weight:600;">조회 오류 발생: ${res.error || res.message}</p>`; }
+        } else { 
+          const errMsg = res.error || res.message || "알 수 없는 통신 오류 발생";
+          container.innerHTML = `<p style="color:#d93025; background:#fef2f2; padding:15px; border-radius:8px; font-weight:600; font-size:0.85rem; text-align:center;">조회 오류 발생:<br>${errMsg}</p>`; 
+        }
       });
     }
 
@@ -430,7 +430,6 @@
       });
     }
 
-    // 🌟 2. 초고속 이미지 압축 및 업로드 기능
     function uploadPhoto() {
       const dateVal = document.getElementById('masterDate').value;
       const stage = document.getElementById('photoStage').value;
@@ -447,10 +446,8 @@
       
       const reader = new FileReader();
       reader.onload = function(e) {
-        // 이미지를 메모리에 불러오기
         const img = new Image();
         img.onload = function() {
-          // 캔버스를 이용해 해상도 리사이징 (최대 가로 1200px)
           const canvas = document.createElement('canvas');
           const MAX_WIDTH = 1200; 
           let width = img.width;
@@ -466,10 +463,8 @@
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          // JPEG 포맷으로 화질 60% 압축
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
 
-          // 압축된 데이터를 구글 서버로 전송
           callGasApi('uploadDashboardPhoto', { 
             base64Data: compressedBase64, 
             fileName: file.name.split('.')[0] + '.jpg', 
@@ -483,7 +478,7 @@
               document.getElementById('uploadMsg').style.color = "#16a34a";
               fileInput.value = ''; document.getElementById('photoStage').selectedIndex = 0; 
               
-              isPhotosLoaded = false; // 새 파일이 올라갔으니 캐시 무효화
+              isPhotosLoaded = false;
             } else { 
               document.getElementById('uploadMsg').innerText = "오류 발생: " + res.error; 
               document.getElementById('uploadMsg').style.color = "#d93025";
@@ -503,7 +498,6 @@
       });
     }
 
-    // 브라우저에 저장된 로그인 정보가 있으면 자동 로그인 처리 (선택 사항)
     window.onload = function() {
       const storedId = localStorage.getItem('currentUser');
       const storedRole = localStorage.getItem('userRole');

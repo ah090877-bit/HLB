@@ -17,19 +17,8 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // 줄바꿈 문자로 인한 JSON 파싱 에러 방지
-    let credentials;
-    try {
-      let rawCreds = process.env.GOOGLE_CREDENTIALS || '{}';
-      rawCreds = rawCreds.replace(/\n/g, '\\n').replace(/\r/g, ''); 
-      credentials = JSON.parse(rawCreds); 
-      if (credentials.private_key) {
-        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
-      }
-    } catch (parseErr) {
-      return res.status(200).json({ success: false, message: '구글 인증키 설정 오류: 환경변수를 다시 확인해주세요.' });
-    }
-
+    // 🌟 아무런 변형 없이 그대로 읽어오던 원래의 정답 코드로 완벽 복구했습니다.
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
@@ -148,7 +137,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 🌟 5. 사진 업로드 (선생님의 완벽한 원본 코드로 복구)
+    // 5. 사진 업로드 (잘 작동하던 원본 PassThrough 방식으로 복구)
     if (action === 'uploadDashboardPhoto') {
       try {
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
@@ -177,7 +166,6 @@ export default async function handler(req, res) {
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
         const newFileName = `${driverName}_${body.stage}_${carNum}_${timeStr}${ext}`;
         
-        // 선생님이 최초에 작성하셨던 순정 스트림 업로드 방식
         const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
         const buffer = Buffer.from(body.base64Data.split(',')[1], 'base64');
         const bufferStream = new stream.PassThrough();
@@ -200,31 +188,29 @@ export default async function handler(req, res) {
       }
     }
 
-    // 🌟 6. 사진 조회 (날짜 및 띄어쓰기 포맷 무결성 보장 로직 추가)
+    // 6. 사진 조회 (과거 텍스트 형태의 날짜 포맷 분석 로직 완성)
     if (action === 'getDriverPhotos') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A2:G' });
       const photos = [];
       for(let row of (response.data.values || [])) {
         if(row[1] && String(row[1]) === String(body.driverId)) {
           let rawDate = String(row[0] || "");
+          let cleanDate = rawDate.substring(0, 10);
           
-          // "2026. 7. 9 오후..." 형태든 "2026-07-09" 형태든 무조건 정규식으로 YYYY-MM-DD로 변환합니다!
-          let cleanDate = rawDate.substring(0, 10); // 기본값
+          // "2026. 7. 7 오후..." 등 비정형 텍스트 날짜를 대시보드가 읽을 수 있는 규격화된 날짜(YYYY-MM-DD)로 가공합니다.
           let match = rawDate.match(/(\d{4})[-.년\s]+(\d{1,2})[-.월\s]+(\d{1,2})/);
           if (match) {
             cleanDate = `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
           }
 
-          // 구분에 띄어쓰기가 있든 없든 모든 공백을 제거하여 100% 일치하게 만듭니다.
           let cleanStage = String(row[4] || "").replace(/\s/g, ''); 
-
           photos.push({ dateKey: cleanDate, stage: cleanStage, url: row[5] || "", fileId: row[6] || "" });
         }
       }
       return res.status(200).json({ success: true, data: photos });
     }
 
-    // 7. 삭제
+    // 7. 사진 삭제
     if (action === 'deleteDriverPhoto') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A1:G' });
       const data = response.data.values || [];
@@ -309,7 +295,7 @@ export default async function handler(req, res) {
           if(!statsObj[dateKey]) statsObj[dateKey] = { date: dateKey, vehicles: new Set(), total: 0, done: 0 };
           statsObj[dateKey].vehicles.add(vehicle);
           statsObj[dateKey].total++;
-          if(arrTime) statsObj[dateKey].done++;
+          if(row[10]) statsObj[dateKey].done++;
 
           if(!hospitalStats[client]) hospitalStats[client] = { count: 0, arrTimes: [] };
           hospitalStats[client].count++;
@@ -380,7 +366,7 @@ export default async function handler(req, res) {
       let loginId = cleanPhone.startsWith('010') ? cleanPhone.substring(3) : cleanPhone;
       
       for (let row of (response.data.values || [])) {
-        if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님 혹은 번호입니다.' });
+        if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님입니다.' });
       }
       
       await sheets.spreadsheets.values.append({

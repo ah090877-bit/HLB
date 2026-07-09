@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
   <style>
-    body { font-family: 'Pretendard', sans-serif; background-color: #f4f6f9; margin: 0; padding: 12px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; color: #333; box-sizing: border-box; }
+    body { font-family: 'Pretendard', sans-serif; background-color: #f4f6f9; margin: 0; padding: 12px; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; color: #333; }
     
     .view-container { display: none; width: 100%; box-sizing: border-box; }
     .view-container.active { display: block; animation: fadeIn 0.3s ease-in-out; }
@@ -32,12 +32,15 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
+    /* 기사님 화면 스타일 (아코디언 토글 추가) */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #1a73e8; padding:14px;}
     .dispatch-card h4 { margin: 0 0 8px 0; font-size: 1.05rem; }
-    .card-meta-item { font-size: 0.85rem; margin-bottom: 4px; color:#475569;}
+    .card-meta-item { font-size: 0.85rem; margin-bottom: 6px; color:#475569; line-height: 1.4; }
     .btn-arrival { background-color: #1a73e8; color: white; padding: 8px 12px; border-radius: 6px; border:none; font-size: 0.75rem; cursor: pointer; float:right;}
     .arrival-done { color: #16a34a; background-color: #f0fdf4; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid #bbf7d0; float:right;}
+    .btn-copy { background: #e2e8f0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; margin-left: 5px; color: #333; }
 
+    /* 관리자 화면 스타일 */
     .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
@@ -48,15 +51,22 @@
     .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
     .search-box input { margin: 0; flex: 1; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem; background:white;}
-    th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; vertical-align: middle; }
+    th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; vertical-align: middle;}
     th { background-color: #f1f5f9; font-weight: 700; color: #334155; }
     .row-missing { background-color: #fff1f2; } 
     
-    /* 🌟 차트 무한 하강 버그 완벽 해결: 고정 높이 지정 */
     .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-    .chart-container { background: #fff; padding: 15px; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); height: 280px; position: relative; box-sizing: border-box; }
+    .chart-container { background: #fff; padding: 15px; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); height:280px; }
     .chart-container.full-width { grid-column: span 2; }
-    @media(max-width: 768px){ .dashboard-grid { grid-template-columns: 1fr; } .chart-container.full-width { grid-column: span 1; } }
+    
+    /* 🌟 모바일 깨짐 방지용 반응형 코드 */
+    @media(max-width: 768px){ 
+      .dashboard-grid { grid-template-columns: 1fr; } 
+      .chart-container.full-width { grid-column: span 1; } 
+      .mobile-wrap { flex-direction: column !important; }
+      .mobile-wrap input { width: 100% !important; margin: 5px 0 !important; }
+      .mobile-wrap button { width: 100% !important; margin-top: 10px !important; }
+    }
 
     .hidden { display: none !important; }
     .custom-modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 9999; }
@@ -82,6 +92,17 @@
     </div>
   </div>
 
+  <!-- 🌟 강제 비밀번호 변경 화면 부활 -->
+  <div id="passwordChangeView" class="view-container">
+    <div class="container">
+      <h2>초기 비밀번호 변경</h2>
+      <p class="subtitle">보안을 위해 새 비밀번호를 설정해 주세요.</p>
+      <input type="password" id="newPw" placeholder="새 비밀번호 입력" required>
+      <input type="password" id="newPwConfirm" placeholder="새 비밀번호 확인" required>
+      <button class="btn-solid" onclick="changePassword()">비밀번호 변경하기</button>
+    </div>
+  </div>
+
   <div id="roleSelectionView" class="view-container">
     <div class="container">
       <h2>운행 관제 시스템</h2>
@@ -104,7 +125,7 @@
   <div id="driverView" class="view-container">
     <div class="container wide">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
-        <div><span style="background:#188038; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">기사</span> <strong id="driverNameDisplay"></strong></div>
+        <div><span style="background:#188038; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">기사</span> <strong id="driverNameDisplay" style="font-size:1.1rem; margin-left:4px;"></strong></div>
         <input type="date" id="masterDate" style="width:auto; margin:0; padding:4px; font-size:0.85rem;" onchange="syncDateChange()">
       </div>
       <div class="tabs-nav">
@@ -127,6 +148,9 @@
           <option value="3.센터 복귀">3. 센터 복귀</option>
           <option value="4.자택 도착">4. 자택 도착</option>
         </select>
+        <!-- 🌟 키로수 기입 추가 -->
+        <label style="margin-top:10px; display:block;">현재 계기판 키로수 (km)</label>
+        <input type="number" id="mileageInput" placeholder="예: 120500" style="margin-top:0;">
         <label>사진 선택</label>
         <input type="file" id="photoInput" accept="image/*">
         <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">안전 초고속 업로드</button>
@@ -151,7 +175,8 @@
   <div id="adminView" class="view-container">
     <div class="container admin-wide">
       <div class="admin-header">
-        <div><h2 style="margin:0;" id="adminGreetingDisplay">종합 관제 대시보드</h2><span style="font-size:0.85rem; color:#64748b;">관리자 계정 접속 중</span></div>
+        <!-- 🌟 관리자 인삿말 예쁘게 네모상자 추가 -->
+        <div><span style="background:#1a73e8; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">관리자</span> <strong id="adminGreetingDisplay" style="font-size:1.2rem; margin-left:4px;"></strong><br><span style="font-size:0.85rem; color:#64748b; margin-top:5px; display:inline-block;">종합 관제 대시보드</span></div>
         <button class="btn-solid" style="width:auto; padding:8px 12px; margin:0;" onclick="logout()">로그아웃</button>
       </div>
 
@@ -168,7 +193,7 @@
         
         <div class="stats-grid">
           <div class="stat-card"><h3>금일 가동 호차</h3><div class="num" id="statVehicle">0</div></div>
-          <div class="stat-card"><h3>금일 총 배송건</h3><div class="num" id="statTotal">0</div></div>
+          <div class="stat-card"><h3>금일 병원 착수건</h3><div class="num" id="statTotal">0</div></div>
           <div class="stat-card"><h3>배송 완료</h3><div class="num" style="color:#16a34a;" id="statDone">0</div></div>
           <div class="stat-card alert"><h3>미완료 (이동중)</h3><div class="num" id="statMissing">0</div></div>
         </div>
@@ -187,7 +212,7 @@
 
       <div id="adminPane_analytics" class="tab-content">
         <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-          <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 호차별 이력을 확인합니다.</p></div>
+          <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 호차별 이력 및 운행거리를 확인합니다.</p></div>
           <input type="month" id="adminMonthStats" style="width:130px; margin:0;" onchange="loadAdminAnalytics()">
         </div>
 
@@ -206,6 +231,12 @@
           </div>
         </div>
         
+        <h3 style="font-size:1.1rem; margin-top:20px;">운행 기록 및 키로수 현황</h3>
+        <table>
+          <thead><tr><th>호차/차량</th><th>월 누적 배송건</th><th>평균 도착시간</th><th>월 누적 운행거리(추정)</th></tr></thead>
+          <tbody id="adminVehicleBody"></tbody>
+        </table>
+        
         <h3 style="font-size:1.1rem; margin-top:20px;">병원별 상세 통계</h3>
         <table>
           <thead><tr><th>병원(거래처) 명칭</th><th>월간 총 배송 횟수</th><th>평균 도착시간</th></tr></thead>
@@ -216,17 +247,20 @@
       <div id="adminPane_manage" class="tab-content">
         <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0;">
           <h3 style="margin:0 0 10px 0; font-size:1rem;">신규 기사 등록</h3>
-          <div style="display:flex; gap:10px; flex-wrap:wrap;">
-            <input type="text" id="newDriverName" placeholder="이름 (예: 홍길동)" style="flex:1; min-width:120px;">
-            <input type="text" id="newDriverPhone" placeholder="휴대폰 (하이픈 자동입력)" style="flex:1; min-width:140px;">
-            <input type="text" id="newDriverCarNum" placeholder="차량번호 (예: 12가3456)" style="flex:1; min-width:120px;">
-            <button class="btn-solid" style="width:100px; margin:8px 0;" onclick="createDriver()">등록</button>
+          <!-- 🌟 모바일 깨짐 방지용 클래스(mobile-wrap) 적용 -->
+          <div class="mobile-wrap" style="display:flex; gap:10px; align-items:center;">
+            <input type="text" id="newDriverName" placeholder="이름 (예: 홍길동)" style="flex:1;">
+            <input type="text" id="newDriverPhone" placeholder="휴대폰 (하이픈 자동입력)" style="flex:1;">
+            <input type="text" id="newDriverCarNum" placeholder="차량번호 (예: 12가3456)" style="flex:1;">
+            <button class="btn-solid" style="width:100px; margin:0;" onclick="createDriver()">등록</button>
           </div>
         </div>
-        <table>
-          <thead><tr><th>이름</th><th>아이디(뒤8자리)</th><th>연락처</th><th>차량번호</th><th>계정 관리</th></tr></thead>
-          <tbody id="adminDriverBody"></tbody>
-        </table>
+        <div style="overflow-x:auto;">
+          <table style="min-width: 500px;">
+            <thead><tr><th>이름</th><th>아이디(뒤8자리)</th><th>연락처</th><th>차량번호</th><th>계정 관리</th></tr></thead>
+            <tbody id="adminDriverBody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -236,6 +270,7 @@
     let adminDailyData = []; 
     let globalPhotosArray = [];
     let selectedLoginRole = '';
+    let tempLoginId = ''; // 비밀번호 강제 변경용 임시 아이디
     
     let chartDailyIns, chartHospitalIns, chartVehicleIns;
 
@@ -248,7 +283,6 @@
       document.getElementById('confirmMessage').innerText = msg;
       document.getElementById('customConfirm').classList.remove('hidden');
       document.getElementById('confirmCancelBtn').style.display = onConfirm ? 'block' : 'none';
-      
       document.getElementById('confirmYesBtn').onclick = function() {
         document.getElementById('customConfirm').classList.add('hidden');
         if(onConfirm) onConfirm();
@@ -263,9 +297,7 @@
         if(!json.success) return { success: false, message: json.message || json.error || "알 수 없는 오류가 발생했습니다." };
         return json;
       })
-      .catch(err => {
-        return { success: false, message: "서버 통신 오류: " + err.message };
-      });
+      .catch(err => { return { success: false, message: "서버 통신 오류: " + err.message }; });
     }
 
     function goBackToSelection() { switchMainView('roleSelectionView'); }
@@ -284,9 +316,35 @@
       
       showCustomAlert("인증 중입니다..."); 
       callGasApi('verifyLogin', { id, password: pw }).then(res => {
-        closeConfirm();
-        if(res.success) loginSuccess(id, res.role, res.name);
+        document.getElementById('customConfirm').classList.add('hidden');
+        if(res.success) {
+          // 🌟 1. 초기 로그인 비밀번호 변경 강제 활성화
+          if(res.isFirstLogin) {
+            tempLoginId = id;
+            switchMainView('passwordChangeView');
+            showCustomAlert('초기 비밀번호를 사용 중입니다. 안전을 위해 비밀번호를 변경해 주세요.');
+          } else {
+            loginSuccess(id, res.role, res.name);
+          }
+        }
         else showCustomAlert(res.message);
+      });
+    }
+
+    // 🌟 비밀번호 변경 기능 실행
+    function changePassword() {
+      const newPw = document.getElementById('newPw').value;
+      const newPwConfirm = document.getElementById('newPwConfirm').value;
+      if(!newPw || newPw !== newPwConfirm) return showCustomAlert('비밀번호가 서로 일치하지 않습니다.');
+      
+      callGasApi('changePassword', { id: tempLoginId, newPassword: newPw }).then(res => {
+        if(res.success) {
+          showCustomAlert('비밀번호가 변경되었습니다. 다시 로그인해 주세요.', () => {
+            switchMainView('loginView');
+            document.getElementById('userId').value = tempLoginId;
+            document.getElementById('userPw').value = '';
+          });
+        } else { showCustomAlert(res.message); }
       });
     }
 
@@ -294,15 +352,13 @@
       localStorage.setItem('currentUser', id); localStorage.setItem('userRole', role); localStorage.setItem('userName', name);
       
       if(role === 'driver') {
-        // 🌟 기사 로그인 문구 커스텀화 완료
         document.getElementById('driverNameDisplay').innerText = `${name}님 반갑습니다!`;
         switchMainView('driverView');
         document.getElementById('masterDate').value = new Date().toISOString().substring(0,10);
         document.getElementById('filterMonth').value = new Date().toISOString().substring(0,7);
         loadDispatchList(); 
       } else if (role === 'admin' || role === 'manager') {
-        // 🌟 관리자 로그인 문구 커스텀화 완료
-        document.getElementById('adminGreetingDisplay').innerText = `관리자 ${name}님 반갑습니다!`;
+        document.getElementById('adminGreetingDisplay').innerText = `${name}님 반갑습니다!`;
         switchMainView('adminView');
         document.getElementById('adminDate').value = new Date().toISOString().substring(0,10);
         document.getElementById('adminMonthStats').value = new Date().toISOString().substring(0,7);
@@ -323,6 +379,22 @@
 
     function syncDateChange() { loadDispatchList(); }
 
+    // 🌟 주소 복사 기능
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showCustomAlert('주소가 클립보드에 복사되었습니다.');
+      }).catch(err => {
+        showCustomAlert('복사 실패. 권한을 확인해주세요.');
+      });
+    }
+
+    // 🌟 아코디언 토글 기능
+    function toggleDetails(id) {
+      const el = document.getElementById(id);
+      if(el.style.display === 'none') el.style.display = 'block';
+      else el.style.display = 'none';
+    }
+
     function loadDispatchList() {
       const targetDate = document.getElementById('masterDate').value;
       document.getElementById('dispatchListContainer').innerHTML = '<p style="padding:15px; text-align:center;">데이터를 불러오는 중입니다...</p>';
@@ -334,8 +406,22 @@
             document.getElementById('vehicleDisplay').innerText = `[당일배정: ${res.vehicle}]`;
             let html = '';
             res.data.forEach(item => {
-              let btn = item.arrivalTime ? `<span class="arrival-done">도착 ${item.arrivalTime}</span>` : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.order}')">거래처 도착</button>`;
-              html += `<div class="dispatch-card"><h4>${item.order}. ${item.clientName}</h4><div class="card-meta-item">주문: ${item.orderNum} / 수량: ${item.qty}개</div>${btn}<div style="clear:both;"></div></div>`;
+              let btn = item.arrivalTime ? `<span class="arrival-done">도착 ${item.arrivalTime}</span>` : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
+              // 🌟 아코디언 숨김 및 주소 복사 UI 반영
+              html += `
+              <div class="dispatch-card">
+                <div onclick="toggleDetails('detail_${item.orderSeq}')" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                  <h4 style="margin:0;">${item.orderSeq}. ${item.clientName}</h4>
+                  <span style="font-size:0.8rem; color:#94a3b8;">상세보기 ▼</span>
+                </div>
+                <div id="detail_${item.orderSeq}" style="display:none; margin-top:10px; border-top:1px dashed #e2e8f0; padding-top:10px;">
+                  <div class="card-meta-item">📍 주소: ${item.clientAddr} <button class="btn-copy" onclick="copyToClipboard('${item.clientAddr}')">주소복사</button></div>
+                  <div class="card-meta-item">📞 번호: ${item.clientPhone}</div>
+                  <div class="card-meta-item">📦 품명: ${item.prodName} / ${item.qty}개 (주문: ${item.orderNum})</div>
+                  <div class="card-meta-item">💡 비고: ${item.remarks || '없음'}</div>
+                  <div style="margin-top:8px;">${btn}</div><div style="clear:both;"></div>
+                </div>
+              </div>`;
             });
             document.getElementById('dispatchListContainer').innerHTML = html;
           }
@@ -354,11 +440,13 @@
       });
     }
 
+    // 🌟 초고속 업로드 + 키로수 포함 로직
     function uploadPhoto() {
       const fileInput = document.getElementById('photoInput');
       const stage = document.getElementById('photoStage').value;
+      const mileage = document.getElementById('mileageInput').value; // 키로수 값 가져오기
       if(!stage || !fileInput.files[0]) return showCustomAlert('단계와 사진을 선택하세요.');
-      showCustomAlert('사진을 압축하고 업로드합니다.\n잠시만 기다려주세요!');
+      showCustomAlert('사진을 업로드하는 중입니다...\n(네트워크 속도에 따라 수 초가 걸릴 수 있습니다.)');
       
       const reader = new FileReader();
       reader.onload = e => {
@@ -366,15 +454,17 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
-          if (w > 1000) { h *= 1000/w; w = 1000; }
+          // 가로를 800px로 줄여 전송 속도 비약적 향상
+          if (w > 800) { h *= 800/w; w = 800; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           
           callGasApi('uploadDashboardPhoto', { 
             base64Data: canvas.toDataURL('image/jpeg', 0.6), fileName: 'photo.jpg', 
-            driverId: localStorage.getItem('currentUser'), stage: stage, customDate: document.getElementById('masterDate').value 
+            driverId: localStorage.getItem('currentUser'), stage: stage, customDate: document.getElementById('masterDate').value,
+            mileage: mileage // 백엔드로 키로수 전달
           }).then(res => {
-            if(res.success) { showCustomAlert("업로드 성공!"); fileInput.value = ''; }
+            if(res.success) { showCustomAlert("업로드 성공!"); fileInput.value = ''; document.getElementById('mileageInput').value = ''; loadDriverPhotos(); }
             else showCustomAlert(res.message);
           });
         };
@@ -389,7 +479,7 @@
       });
     }
 
-    // 🌟 띄어쓰기 완전 공백 제거 처리 매칭 구현
+    // 🌟 키로수를 포함한 월별 내역 출력
     function renderPhotoGrid() {
       const month = document.getElementById('filterMonth').value;
       const tbody = document.getElementById('gridTableBody');
@@ -403,10 +493,13 @@
         }
       });
       Object.keys(grid).sort().reverse().forEach(date => {
-        let tr = `<tr><td>${date.substring(5)}</td>`;
+        let tr = `<tr><td style="font-size:0.75rem;">${date.substring(5)}</td>`;
         ['1.자택출발','2.센터입차','3.센터복귀','4.자택도착'].forEach(s => {
-          if(grid[date][s]) tr += `<td><a href="${grid[date][s].url}" target="_blank" style="font-size:0.75rem; display:block;">보기</a><span style="color:red; cursor:pointer; font-size:0.75rem;" onclick="deleteP('${grid[date][s].fileId}')">삭제</span></td>`;
-          else tr += `<td>-</td>`;
+          if(grid[date][s]) {
+            let kmText = grid[date][s].mileage > 0 ? `<br><span style="font-size:0.65rem; color:#64748b;">${grid[date][s].mileage}km</span>` : '';
+            tr += `<td><a href="${grid[date][s].url}" target="_blank" style="font-size:0.75rem; display:block;">보기</a>${kmText}<span style="color:red; cursor:pointer; font-size:0.7rem; display:block; margin-top:2px;" onclick="deleteP('${grid[date][s].fileId}')">삭제</span></td>`;
+          }
+          else tr += `<td style="color:#cbd5e1; font-size:0.7rem;">-</td>`;
         });
         tbody.innerHTML += tr + `</tr>`;
       });
@@ -466,7 +559,7 @@
           <td>${item.vehicle}</td>
           <td><strong>${item.driverName}</strong></td>
           <td>${item.driverPhone}</td>
-          <td>${item.clientName}</td>
+          <td style="text-align:left;">${item.clientName}</td>
           <td style="font-weight:bold; color:${item.arrivalTime ? '#16a34a' : '#dc2626'}">${item.arrivalTime || '미완료'}</td>
         `;
         tbody.appendChild(tr);
@@ -484,17 +577,25 @@
         if(res.success) {
           renderCharts(res.data, res.hospitalData, res.vehicleData);
           
+          const vBody = document.getElementById('adminVehicleBody');
+          vBody.innerHTML = '';
+          res.vehicleData.forEach(v => {
+             // 키로수 데이터가 있다면 출력
+             let kmText = v.totalKm > 0 ? `${v.totalKm.toLocaleString()} km` : '기록없음';
+             vBody.innerHTML += `<tr><td><strong>${v.vehicle}</strong></td><td>${v.totalDeliveries}건</td><td>${v.avgEndTime}</td><td style="color:#1a73e8; font-weight:bold;">${kmText}</td></tr>`;
+          });
+          if(res.vehicleData.length === 0) vBody.innerHTML = '<tr><td colspan="4">데이터 없음</td></tr>';
+
           const hBody = document.getElementById('adminHospitalsBody');
           hBody.innerHTML = '';
           res.hospitalData.forEach(h => {
-             hBody.innerHTML += `<tr><td><strong>${h.hospital}</strong></td><td>${h.count}건</td><td>${h.avgTime}</td></tr>`;
+             hBody.innerHTML += `<tr><td style="text-align:left;"><strong>${h.hospital}</strong></td><td>${h.count}건</td><td>${h.avgTime}</td></tr>`;
           });
           if(res.hospitalData.length === 0) hBody.innerHTML = '<tr><td colspan="3">데이터 없음</td></tr>';
         }
       });
     }
 
-    // 🌟 Chart.js 무한 크기 팽창 다운 버그 방지 옵션 완벽 주입
     function renderCharts(dailyData, hospitalData, vehicleData) {
       if(chartDailyIns) chartDailyIns.destroy();
       if(chartHospitalIns) chartHospitalIns.destroy();
@@ -535,7 +636,6 @@
       });
     }
 
-    // 🌟 계정 조작 핸들러 동작 복구 적용
     function loadAdminDriverList() {
       callGasApi('getDriverList').then(res => {
         const tbody = document.getElementById('adminDriverBody');

@@ -17,8 +17,19 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // 🌟 오류의 원인이었던 불필요한 예외처리를 모두 제거하고 선생님의 원본 코드로 복구했습니다.
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+    // 줄바꿈 문자로 인한 JSON 파싱 에러 방지
+    let credentials;
+    try {
+      let rawCreds = process.env.GOOGLE_CREDENTIALS || '{}';
+      rawCreds = rawCreds.replace(/\n/g, '\\n').replace(/\r/g, ''); 
+      credentials = JSON.parse(rawCreds); 
+      if (credentials.private_key) {
+        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+      }
+    } catch (parseErr) {
+      return res.status(200).json({ success: false, message: '구글 인증키 설정 오류: 환경변수를 다시 확인해주세요.' });
+    }
+
     const auth = new google.auth.GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
@@ -58,7 +69,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사님 배차 조회 (호차배정 시트 참조 동적 할당)
+    // 3. 기사님 배차 조회
     if (action === 'getDriverDispatch') {
       const dateObj = new Date(body.targetDate);
       const month = dateObj.getMonth() + 1;
@@ -137,15 +148,13 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 🌟 5. 사진 업로드 (잘 작동하던 Vercel 호환 원본 스트림으로 완벽 복원)
+    // 🌟 5. 사진 업로드 (선생님의 완벽한 원본 코드로 복구)
     if (action === 'uploadDashboardPhoto') {
       try {
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
         let driverName = ''; let carNum = '';
         for(let row of (usersRes.data.values || [])) { 
-          if(String(row[2]) === String(body.driverId)) { 
-            driverName = row[1]; carNum = row[5]; break; 
-          } 
+          if(String(row[2]) === String(body.driverId)) { driverName = row[1]; carNum = row[5]; break; } 
         }
 
         const tDate = new Date(body.customDate);
@@ -168,14 +177,16 @@ export default async function handler(req, res) {
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
         const newFileName = `${driverName}_${body.stage}_${carNum}_${timeStr}${ext}`;
         
-        // 🌟 선생님의 원래 코드!
+        // 선생님이 최초에 작성하셨던 순정 스트림 업로드 방식
         const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
         const buffer = Buffer.from(body.base64Data.split(',')[1], 'base64');
         const bufferStream = new stream.PassThrough();
         bufferStream.end(buffer);
 
         const fileRes = await drive.files.create({
-          requestBody: { name: newFileName, parents: [dayFolderId] }, media: { mimeType: mimeType, body: bufferStream }, fields: 'id, webViewLink', supportsAllDrives: true
+          requestBody: { name: newFileName, parents: [dayFolderId] }, 
+          media: { mimeType: mimeType, body: bufferStream }, 
+          fields: 'id, webViewLink', supportsAllDrives: true
         });
         await drive.permissions.create({ fileId: fileRes.data.id, requestBody: { role: 'reader', type: 'anyone' }, supportsAllDrives: true });
         
@@ -185,19 +196,35 @@ export default async function handler(req, res) {
         });
         return res.status(200).json({ success: true, url: fileRes.data.webViewLink });
       } catch (err) {
-        return res.status(200).json({ success: false, message: `구글 드라이브 연동 오류: ${err.message}` });
+        return res.status(200).json({ success: false, message: `드라이브 연동 오류: ${err.message}` });
       }
     }
 
-    // 6. 사진 조회 / 7. 삭제
+    // 🌟 6. 사진 조회 (날짜 및 띄어쓰기 포맷 무결성 보장 로직 추가)
     if (action === 'getDriverPhotos') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A2:G' });
       const photos = [];
       for(let row of (response.data.values || [])) {
-        if(row[1] && String(row[1]) === String(body.driverId)) photos.push({ dateKey: String(row[0]).substring(0, 10), stage: row[4] || "", url: row[5] || "", fileId: row[6] || "" });
+        if(row[1] && String(row[1]) === String(body.driverId)) {
+          let rawDate = String(row[0] || "");
+          
+          // "2026. 7. 9 오후..." 형태든 "2026-07-09" 형태든 무조건 정규식으로 YYYY-MM-DD로 변환합니다!
+          let cleanDate = rawDate.substring(0, 10); // 기본값
+          let match = rawDate.match(/(\d{4})[-.년\s]+(\d{1,2})[-.월\s]+(\d{1,2})/);
+          if (match) {
+            cleanDate = `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
+          }
+
+          // 구분에 띄어쓰기가 있든 없든 모든 공백을 제거하여 100% 일치하게 만듭니다.
+          let cleanStage = String(row[4] || "").replace(/\s/g, ''); 
+
+          photos.push({ dateKey: cleanDate, stage: cleanStage, url: row[5] || "", fileId: row[6] || "" });
+        }
       }
       return res.status(200).json({ success: true, data: photos });
     }
+
+    // 7. 삭제
     if (action === 'deleteDriverPhoto') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A1:G' });
       const data = response.data.values || [];

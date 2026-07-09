@@ -9,6 +9,20 @@ function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
+// 날짜를 기반으로 '26.07' 형태의 시트 접두사를 만들어주는 함수
+function formatYYMM(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) {
+    const parts = dateStr.split('-');
+    if (parts.length >= 2) return `${parts[0].slice(-2)}.${parts[1].padStart(2, '0')}`;
+    return dateStr;
+  }
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${yy}.${mm}`;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'POST 요청만 받습니다.' });
 
@@ -16,21 +30,15 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // 🌟 오류의 원인이었던 불필요한 방어 코드를 모두 삭제하고 선생님의 최초 원본으로 복구했습니다.
     const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-
     const auth = new google.auth.GoogleAuth({
       credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
-    const drive = google.drive({ version: 'v3', auth });
-    
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
-    
-    // 선생님의 구글 앱스 스크립트 웹앱 주소 적용 완료
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyppHv-1YCsvplSP7TOoS5q0djhye9-1oBFx-jJDZM0B9vZi2wI6s7GRpPK_d_E0g-Z/exec";
 
     // 1. 로그인
@@ -61,13 +69,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사님 배차 조회
+    // 3. 기사님 배차 조회 (새로운 포맷 매칭)
     if (action === 'getDriverDispatch') {
-      const dateObj = new Date(body.targetDate);
-      const month = dateObj.getMonth() + 1;
+      const prefix = formatYYMM(body.targetDate);
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${prefix}_호차배정!A2:D`, `${prefix}_배차리스트!A2:K`],
         });
         const usersData = response.data.valueRanges[0].values || [];
         const assignData = response.data.valueRanges[1].values || [];
@@ -99,17 +106,16 @@ export default async function handler(req, res) {
         dispatchList.sort((a, b) => Number(a.orderSeq) - Number(b.orderSeq));
         return res.status(200).json({ success: true, vehicle: assignedVehicle, data: dispatchList });
       } catch (err) { 
-        return res.status(200).json({ success: false, message: `${month}월 배차 탭이 시트에 존재하지 않습니다.` }); 
+        return res.status(200).json({ success: false, message: `${prefix}_배차리스트 탭이 시트에 존재하지 않습니다.` }); 
       }
     }
 
     // 4. 도착 시간 기록
     if (action === 'recordArrivalTime') {
-      const dateObj = new Date(body.targetDate);
-      const month = dateObj.getMonth() + 1;
+      const prefix = formatYYMM(body.targetDate);
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${prefix}_호차배정!A2:D`, `${prefix}_배차리스트!A2:K`],
         });
         const usersData = response.data.valueRanges[0].values || [];
         const assignData = response.data.valueRanges[1].values || [];
@@ -131,7 +137,7 @@ export default async function handler(req, res) {
             const kst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
             const timeStr = `${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
             await sheets.spreadsheets.values.update({
-              spreadsheetId: SPREADSHEET_ID, range: `${month}월_배차리스트!K${i + 2}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[timeStr]] }
+              spreadsheetId: SPREADSHEET_ID, range: `${prefix}_배차리스트!K${i + 2}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[timeStr]] }
             });
             return res.status(200).json({ success: true, arrivalTime: timeStr });
           }
@@ -140,19 +146,20 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 5. 사진 업로드 (선생님의 GAS 우회 방식으로 처리)
+    // 5. 사진 업로드 + [YY.MM]_운행거리 시트 자동 기입 로직 연동
     if (action === 'uploadDashboardPhoto') {
       try {
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
-        let driverName = ''; let carNum = '';
-        for(let row of (usersRes.data.values || [])) { 
-          if(String(row[2]) === String(body.driverId)) { driverName = row[1]; carNum = row[5]; break; } 
+        const users = usersRes.data.values || [];
+        let driverName = ''; let carNum = ''; let originPhone = '';
+        for(let row of users) { 
+          if(String(row[2]) === String(body.driverId)) { driverName = row[1]; carNum = row[5]; originPhone = row[3]; break; } 
         }
 
         const tDate = new Date(body.customDate);
+        const prefix = formatYYMM(body.customDate);
         const kst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
         
-        // GAS로 보낼 연/월/일 포맷 생성
         const yearStr = `${tDate.getFullYear()}년`;
         const monthStr = `${String(tDate.getMonth()+1).padStart(2,'0')}월`;
         const dayStr = `${String(tDate.getDate()).padStart(2,'0')}일`;
@@ -165,31 +172,84 @@ export default async function handler(req, res) {
 
         const gasResponse = await fetch(GAS_WEB_APP_URL, {
           method: 'POST',
-          body: JSON.stringify({
-            folderId: FOLDER_ID,
-            fileName: newFileName,
-            base64Data: body.base64Data,
-            yearStr: yearStr,
-            monthStr: monthStr,
-            dayStr: dayStr
-          })
+          body: JSON.stringify({ folderId: FOLDER_ID, fileName: newFileName, base64Data: body.base64Data, yearStr, monthStr, dayStr })
         });
 
         const gasResult = await gasResponse.json();
-        if (!gasResult.success) throw new Error(gasResult.message || "GAS 업로드 실패");
+        if (!gasResult.success) throw new Error("GAS 업로드 실패");
 
-        // Photos 시트 H열에 키로수 반영
+        // 1. Photos 기본 영수증 보관 시트 기록
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:H', valueInputOption: 'USER_ENTERED',
           requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, gasResult.url, gasResult.id, body.mileage || '0' ]] }
         });
+
+        // 🌟 2. [YY.MM]_운행거리 스마트 동기화 기입 구역
+        if (body.mileage) {
+          const dateString = body.customDate.substring(0, 10);
+          const cleanPhone = originPhone.replace(/[-']/g, '');
+          
+          try {
+            const mRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A2:H` });
+            const mRows = mRes.data.values || [];
+            let targetRowIndex = -1;
+            
+            for (let i = 0; i < mRows.length; i++) {
+              if (String(mRows[i][0]).substring(0,10) === dateString && String(mRows[i][2]).replace(/[-']/g, '') === cleanPhone) {
+                targetRowIndex = i + 2;
+                break;
+              }
+            }
+
+            let colLetter = '';
+            const stageClean = String(body.stage).replace(/\s/g, '');
+            if (stageClean.includes('자택출발')) colLetter = 'D';
+            else if (stageClean.includes('센터입차')) colLetter = 'E';
+            else if (stageClean.includes('센터복귀')) colLetter = 'F';
+            else if (stageClean.includes('자택도착')) colLetter = 'G';
+
+            if (targetRowIndex !== -1) {
+              // 행이 이미 존재함 -> 기입 열만 부분 업데이트
+              if (colLetter) {
+                await sheets.spreadsheets.values.update({
+                  spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!${colLetter}${targetRowIndex}`,
+                  valueInputOption: 'USER_ENTERED', requestBody: { values: [[body.mileage]] }
+                });
+              }
+              // 자택도착인 경우 수식 자동 주입 (최종거리 = 자택도착 - 자택출발)
+              if (stageClean.includes('자택도착')) {
+                const uRowRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A${targetRowIndex}:G${targetRowIndex}` });
+                const uData = uRowRes.data.values[0] || [];
+                const startKm = parseInt(uData[3]) || 0;
+                const endKm = parseInt(body.mileage) || 0;
+                if (startKm > 0 && endKm >= startKm) {
+                  await sheets.spreadsheets.values.update({
+                    spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!H${targetRowIndex}`,
+                    valueInputOption: 'USER_ENTERED', requestBody: { values: [[endKm - startKm]] }
+                  });
+                }
+              }
+            } else {
+              // 오늘 첫 데이터 입력 -> 신규 행 추가
+              const newRow = [dateString, driverName, originPhone, '', '', '', '', '0'];
+              if (stageClean.includes('자택출발')) newRow[3] = body.mileage;
+              if (stageClean.includes('센터입차')) newRow[4] = body.mileage;
+              if (stageClean.includes('센터복귀')) newRow[5] = body.mileage;
+              if (stageClean.includes('자택도착')) newRow[6] = body.mileage;
+
+              await sheets.spreadsheets.values.append({
+                spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A:H`,
+                valueInputOption: 'USER_ENTERED', requestBody: { values: [newRow] }
+              });
+            }
+          } catch(se) { console.log("운행거리 시트 미존재 또는 매칭 패스"); }
+        }
+
         return res.status(200).json({ success: true, url: gasResult.url });
-      } catch (err) {
-        return res.status(200).json({ success: false, message: `구글 연동 오류: ${err.message}` });
-      }
+      } catch (err) { return res.status(200).json({ success: false, message: `구글 연동 오류: ${err.message}` }); }
     }
 
-    // 6. 사진 조회 (과거 날짜 완벽 매칭 및 키로수(H열) 포함)
+    // 6. 과거 내역 조회
     if (action === 'getDriverPhotos') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A2:H' });
       const photos = [];
@@ -197,14 +257,9 @@ export default async function handler(req, res) {
         if(row[1] && String(row[1]) === String(body.driverId)) {
           let rawDate = String(row[0] || "");
           let cleanDate = rawDate.substring(0, 10);
-          
           let match = rawDate.match(/^(\d{4})[./년\s]+(\d{1,2})[./월\s]+(\d{1,2})/);
-          if (match) {
-            cleanDate = `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
-          }
-
-          let cleanStage = String(row[4] || "").replace(/\s/g, ''); 
-          photos.push({ dateKey: cleanDate, stage: cleanStage, url: row[5] || "", fileId: row[6] || "", mileage: row[7] || '0' });
+          if (match) { cleanDate = `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`; }
+          photos.push({ dateKey: cleanDate, stage: String(row[4]||"").replace(/\s/g, ''), url: row[5] || "", fileId: row[6] || "", mileage: row[7] || '0' });
         }
       }
       return res.status(200).json({ success: true, data: photos });
@@ -221,17 +276,15 @@ export default async function handler(req, res) {
         const sheetId = sheetMeta.data.sheets.find(s => s.properties.title === 'Photos').properties.sheetId;
         await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests: [{ deleteDimension: { range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 } } }] } });
       }
-      try { await drive.files.update({ fileId: body.fileId, requestBody: { trashed: true }, supportsAllDrives: true }); } catch(e) {}
       return res.status(200).json({ success: true });
     }
 
-    // 8. 당일 상세 현황 (중복 병원 합치기 기능 포함)
+    // 8. [관리자] 당일 상세 현황 (🌟 개선7: 호차별 동일 병원 중복 합산 연출 완료)
     if (action === 'getAdminDailyStatus') {
-      const dateObj = new Date(body.targetDate);
-      const month = dateObj.getMonth() + 1;
+      const prefix = formatYYMM(body.targetDate);
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${month}월_호차배정!A2:D`, `${month}월_배차리스트!A2:K`],
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${prefix}_호차배정!A2:D`, `${prefix}_배차리스트!A2:K`],
         });
         const users = response.data.valueRanges[0].values || [];
         const assign = response.data.valueRanges[1].values || [];
@@ -257,33 +310,33 @@ export default async function handler(req, res) {
             }
           }
           
-          let key = vehicle + "_" + clientName;
-          if(!groupedDispatch[key]) {
-            groupedDispatch[key] = { vehicle, driverName, driverPhone, clientName, arrivalTime };
+          // 동선 정제 조건 결합 키 (호차 + 병원명)
+          let combineKey = vehicle + "_" + clientName;
+          if(!groupedDispatch[combineKey]) {
+            groupedDispatch[combineKey] = { vehicle, driverName, driverPhone, clientName, arrivalTime };
           } else {
-            if(arrivalTime && !groupedDispatch[key].arrivalTime) groupedDispatch[key].arrivalTime = arrivalTime;
+            if(arrivalTime && !groupedDispatch[combineKey].arrivalTime) groupedDispatch[combineKey].arrivalTime = arrivalTime;
           }
         }
-        let dailyList = Object.values(groupedDispatch);
-        return res.status(200).json({ success: true, data: dailyList, vehicleCount: activeVehicles.size });
-      } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패 (해당 월의 배차 탭을 확인하세요)' }); }
+        return res.status(200).json({ success: true, data: Object.values(groupedDispatch), vehicleCount: activeVehicles.size });
+      } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패' }); }
     }
 
-    // 9. 월별 통계 분석 (키로수 분석 반영)
+    // 9. [관리자] 월별 통계 분석 (🌟 개선6: 기사별 누적 운행거리 지표 도출 완료)
     if (action === 'getAdminMonthlyStats') {
-      const monthStr = body.targetMonth;
-      const monthNum = parseInt(monthStr.split('-')[1], 10);
+      const prefix = formatYYMM(body.targetMonth);
       try {
         const response = await sheets.spreadsheets.values.batchGet({
-          spreadsheetId: SPREADSHEET_ID, ranges: [`${monthNum}월_배차리스트!A2:K`, 'Photos!A2:H'],
+          spreadsheetId: SPREADSHEET_ID, ranges: [`${prefix}_배차리스트!A2:K`, 'Users!A2:G', `${prefix}_호차배정!A2:D`, `${prefix}_운행거리!A2:H`],
         });
         const dispatch = response.data.valueRanges[0].values || [];
-        const photos = response.data.valueRanges[1].values || [];
+        const users = response.data.valueRanges[1].values || [];
+        const assign = response.data.valueRanges[2].values || [];
+        const mileageRows = response.data.valueRanges[3].values || [];
         
         let statsObj = {};
         let hospitalStats = {};
-        let vehicleStats = {};
-        let mileageObj = {}; 
+        let driverStats = {}; // 기사 중심 통계 객체 전환
 
         const timeToMins = (timeStr) => {
           if(!timeStr || !timeStr.includes(':')) return 0;
@@ -291,31 +344,19 @@ export default async function handler(req, res) {
           return parseInt(h)*60 + parseInt(m);
         };
 
-        for (let row of photos) {
-          let rawDate = String(row[0] || "");
-          let match = rawDate.match(/^(\d{4})[./년\s]+(\d{1,2})[./월\s]+(\d{1,2})/);
-          let dateStr = match ? `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}` : rawDate.substring(0, 10);
-          
-          if(!dateStr.startsWith(monthStr)) continue;
-          
-          let carNum = String(row[3] || '미정');
-          let km = parseInt(row[7]) || 0;
-          
-          if(km > 0) {
-            let key = dateStr + "_" + carNum;
-            if(!mileageObj[key]) mileageObj[key] = { min: km, max: km };
-            if(km < mileageObj[key].min) mileageObj[key].min = km;
-            if(km > mileageObj[key].max) mileageObj[key].max = km;
-          }
+        // 운행거리 시트에서 기사별 총 km 사전 합산
+        for (let r of mileageRows) {
+          let dName = String(r[1]);
+          let finalKm = parseInt(r[7]) || 0;
+          if (!driverStats[dName]) driverStats[dName] = { count: 0, clients: new Set(), endTimes: [], totalKm: 0 };
+          driverStats[dName].totalKm += finalKm;
         }
 
         for (let row of dispatch) {
           if(!row[0]) continue;
           let dateKey = String(row[0]).substring(0, 10);
-          if(!dateKey.startsWith(monthStr)) continue;
-          
-          let vehicle = String(row[1] || '미정');
-          let client = String(row[3] || '알수없음');
+          let vehicle = String(row[1]);
+          let client = String(row[3]);
           let arrTime = row[10] || null;
 
           if(!statsObj[dateKey]) statsObj[dateKey] = { date: dateKey, vehicles: new Set(), total: 0, done: 0 };
@@ -327,53 +368,51 @@ export default async function handler(req, res) {
           hospitalStats[client].count++;
           if(arrTime) hospitalStats[client].arrTimes.push(timeToMins(arrTime));
 
-          if(!vehicleStats[vehicle]) vehicleStats[vehicle] = { count: 0, clients: new Set(), endTimes: [], totalKm: 0 };
-          vehicleStats[vehicle].count++;
-          vehicleStats[vehicle].clients.add(client);
-          if(arrTime) vehicleStats[vehicle].endTimes.push({ date: dateKey, time: timeToMins(arrTime) });
-        }
-
-        Object.keys(mileageObj).forEach(key => {
-          let dailyKm = mileageObj[key].max - mileageObj[key].min;
-          for(let v in vehicleStats) {
-             vehicleStats[v].totalKm += dailyKm; 
+          // 호차 코드를 매칭하여 해당 날짜의 기사명 역추적
+          let driverName = "미배정";
+          for (let a of assign) {
+            if (String(a[0]).substring(0, 10) === dateKey && String(a[1]) === vehicle) {
+              let aPhone = String(a[3]).replace(/[-']/g, '');
+              for (let u of users) { if (String(u[3]).replace(/[-']/g, '') === aPhone) { driverName = u[1]; break; } }
+              break;
+            }
           }
-        });
+
+          if (driverName === "미배정") continue;
+          if (!driverStats[driverName]) driverStats[driverName] = { count: 0, clients: new Set(), endTimes: [], totalKm: 0 };
+          
+          driverStats[driverName].count++;
+          driverStats[driverName].clients.add(client);
+          if (arrTime) driverStats[driverName].endTimes.push({ date: dateKey, time: timeToMins(arrTime) });
+        }
 
         let statsArray = Object.keys(statsObj).map(date => ({
           date: date, vehicleCount: statsObj[date].vehicles.size, totalCount: statsObj[date].total,
           doneCount: statsObj[date].done, missingCount: statsObj[date].total - statsObj[date].done
         })).sort((a, b) => a.date.localeCompare(b.date));
 
-        let vStatsOut = [];
-        for(let v in vehicleStats) {
+        let dStatsOut = [];
+        for(let d in driverStats) {
            let endTimesByDate = {};
-           vehicleStats[v].endTimes.forEach(et => {
-             if(!endTimesByDate[et.date] || endTimesByDate[et.date] < et.time) endTimesByDate[et.date] = et.time;
-           });
+           driverStats[d].endTimes.forEach(et => { if(!endTimesByDate[et.date] || endTimesByDate[et.date] < et.time) endTimesByDate[et.date] = et.time; });
            let totalMins = 0; let dayCount = 0;
-           for(let d in endTimesByDate) { totalMins += endTimesByDate[d]; dayCount++; }
+           for(let dt in endTimesByDate) { totalMins += endTimesByDate[dt]; dayCount++; }
            let avgStr = "-";
            if(dayCount > 0) {
              let avgMin = Math.floor(totalMins / dayCount);
              avgStr = `${String(Math.floor(avgMin/60)).padStart(2,'0')}:${String(avgMin%60).padStart(2,'0')}`;
            }
-           vStatsOut.push({ vehicle: v, clientCount: vehicleStats[v].clients.size, totalDeliveries: vehicleStats[v].count, avgEndTime: avgStr, totalKm: vehicleStats[v].totalKm });
+           dStatsOut.push({ driverName: d, clientCount: driverStats[d].clients.size, totalDeliveries: driverStats[d].count, avgEndTime: avgStr, totalKm: driverStats[d].totalKm });
         }
 
         let hStatsOut = Object.keys(hospitalStats).map(h => {
            let totalMins = hospitalStats[h].arrTimes.reduce((acc, val) => acc + val, 0);
            let arrCount = hospitalStats[h].arrTimes.length;
-           let avgStr = "-";
-           if(arrCount > 0) {
-             let avgMin = Math.floor(totalMins / arrCount);
-             avgStr = `${String(Math.floor(avgMin/60)).padStart(2,'0')}:${String(avgMin%60).padStart(2,'0')}`;
-           }
-           return { hospital: h, count: hospitalStats[h].count, avgTime: avgStr };
+           return { hospital: h, count: hospitalStats[h].count, avgTime: arrCount > 0 ? `${String(Math.floor((totalMins/arrCount)/60)).padStart(2,'0')}:${String(Math.floor((totalMins/arrCount)%60)).padStart(2,'0')}` : "-" };
         }).sort((a,b) => b.count - a.count);
 
-        return res.status(200).json({ success: true, data: statsArray, hospitalData: hStatsOut, vehicleData: vStatsOut });
-      } catch (err) { return res.status(200).json({ success: false, message: '해당 월의 데이터가 없습니다.' }); }
+        return res.status(200).json({ success: true, data: statsArray, hospitalData: hStatsOut, driverData: dStatsOut });
+      } catch (err) { return res.status(200).json({ success: false, message: '해당 월의 데이터 구조가 유효하지 않습니다.' }); }
     }
 
     // 10. 기사 목록 조회
@@ -394,9 +433,8 @@ export default async function handler(req, res) {
       let loginId = cleanPhone.startsWith('010') ? cleanPhone.substring(3) : cleanPhone;
       
       for (let row of (response.data.values || [])) {
-        if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님 혹은 번호입니다.' });
+        if (String(row[3]).replace(/-/g, '') === cleanPhone || String(row[2]) === loginId) return res.status(200).json({ success: false, message: '이미 등록된 기사님입니다.' });
       }
-      
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID, range: 'Users!A:G', valueInputOption: 'USER_ENTERED',
         requestBody: { values: [['driver', body.name, `'${loginId}`, `'${formatPhone}`, hashPassword('0000'), body.carNumber, 'Y']] }
@@ -423,16 +461,11 @@ export default async function handler(req, res) {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
       const rows = response.data.values || [];
       let rowIndex = -1;
-      for (let i = 0; i < rows.length; i++) {
-        if (String(rows[i][2]) === String(body.id)) { rowIndex = i; break; }
-      }
+      for (let i = 0; i < rows.length; i++) { if (String(rows[i][2]) === String(body.id)) { rowIndex = i; break; } }
       if (rowIndex !== -1) {
         const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
         const sheetId = sheetMeta.data.sheets.find(s => s.properties.title === 'Users').properties.sheetId;
-        await sheets.spreadsheets.batchUpdate({
-          spreadsheetId: SPREADSHEET_ID,
-          requestBody: { requests: [{ deleteDimension: { range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 } } }] }
-        });
+        await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests: [{ deleteDimension: { range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 } } }] } });
         return res.status(200).json({ success: true });
       }
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });

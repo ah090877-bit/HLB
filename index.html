@@ -32,18 +32,17 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* 기사님 화면 아코디언 & 주소복사 단추 정밀 조율 */
+    /* 기사 아코디언 및 복사버튼 */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #1a73e8; padding:14px;}
     .dispatch-card h4 { margin: 0; font-size: 1.05rem; }
     .card-meta-item { font-size: 0.85rem; margin-bottom: 5px; color:#475569; line-height:1.4;}
     .btn-arrival { background-color: #1a73e8; color: white; padding: 8px 12px; border-radius: 6px; border:none; font-size: 0.75rem; cursor: pointer; float:right;}
     .arrival-done { color: #16a34a; background-color: #f0fdf4; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid #bbf7d0; float:right;}
-    .btn-copy { background: #e2e8f0; border: none; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; color: #333; margin-left: 4px; font-weight: bold;}
+    .btn-copy { background: #e2e8f0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; color: #333; margin-left: 5px; font-weight: bold;}
 
-    /* 관리자 인삿말 고급 정제 상자 테두리 부여 */
-    .admin-welcome-box { border: 2px solid #1a73e8; background-color: #f0f7ff; padding: 10px 15px; border-radius: 8px; display: inline-block; text-align: left; }
+    /* 🌟 관리자 인삿말 네모상자 */
+    .admin-welcome-box { border: 2px solid #1a73e8; background-color: #f0f7ff; padding: 12px 18px; border-radius: 8px; display: inline-block; text-align: left; }
 
-    /* 관리자 화면 공통 */
     .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
@@ -51,10 +50,9 @@
     .stat-card .num { font-size: 2rem; font-weight: 800; color: #1e293b; }
     .stat-card.alert { border-color: #fca5a5; background: #fef2f2; }
     .stat-card.alert .num { color: #dc2626; }
-    .search-box { display: flex; gap: 10px; margin-bottom: 15px; }
-    .search-box input { margin: 0; flex: 1; }
+    
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem; background:white;}
-    th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; }
+    th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; vertical-align: middle; }
     th { background-color: #f1f5f9; font-weight: 700; color: #334155; }
     .row-missing { background-color: #fff1f2; } 
     
@@ -62,15 +60,17 @@
     .chart-container { background: #fff; padding: 15px; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); height: 280px; }
     .chart-container.full-width { grid-column: span 2; }
     
-    /* 🌟 모바일 환경 계정 생성 양식 최적화 안착 스크립트 */
+    /* 🌟 모바일 깨짐 방지용 */
     .driver-register-form { display: flex; gap: 10px; flex-wrap: wrap; }
-    .driver-register-form input { flex: 1; min-width: 130px; }
+    .driver-register-form input { flex: 1; min-width: 140px; }
     @media(max-width: 768px){ 
       .dashboard-grid { grid-template-columns: 1fr; } 
       .chart-container.full-width { grid-column: span 1; } 
       .driver-register-form { flex-direction: column; gap: 5px; }
       .driver-register-form input { width: 100%; }
       .driver-register-form button { width: 100%; margin-top: 5px; padding: 12px; }
+      .search-box-wrap { flex-direction: column; }
+      .search-box-wrap select, .search-box-wrap input, .search-box-wrap button { width: 100% !important; margin: 5px 0 !important; }
     }
 
     .hidden { display: none !important; }
@@ -100,10 +100,10 @@
   <div id="passwordChangeView" class="view-container">
     <div class="container">
       <h2>초기 비밀번호 변경</h2>
-      <p class="subtitle">안전한 시스템 관제를 위해 신규 비밀번호를 지정하세요.</p>
-      <input type="password" id="newPw" placeholder="새 비밀번호 입력">
-      <input type="password" id="newPwConfirm" placeholder="새 비밀번호 재확인">
-      <button class="btn-solid" onclick="executePasswordChange()">변경 완료하기</button>
+      <p class="subtitle">보안을 위해 새 비밀번호를 설정해 주세요.</p>
+      <input type="password" id="newPw" placeholder="새 비밀번호 입력" required>
+      <input type="password" id="newPwConfirm" placeholder="새 비밀번호 확인" required>
+      <button class="btn-solid" onclick="executePasswordChange()">비밀번호 변경하기</button>
     </div>
   </div>
 
@@ -129,7 +129,7 @@
   <div id="driverView" class="view-container">
     <div class="container wide">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
-        <div><span style="background:#188038; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">기사</span> <strong id="driverNameDisplay"></strong>님 반갑습니다!</div>
+        <div><span style="background:#188038; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">기사</span> <strong id="driverNameDisplay" style="font-size:1.1rem; margin-left:4px;"></strong></div>
         <input type="date" id="masterDate" style="width:auto; margin:0; padding:4px; font-size:0.85rem;" onchange="syncDateChange()">
       </div>
       <div class="tabs-nav">
@@ -152,10 +152,8 @@
           <option value="3.센터 복귀">3. 센터 복귀</option>
           <option value="4.자택 도착">4. 자택 도착</option>
         </select>
-        
         <label style="margin-top:10px; display:block;">현재 계기판 키로수 (km)</label>
-        <input type="number" id="mileageInput" placeholder="숫자만 입력 (예: 45012)" style="margin-top:2px;">
-        
+        <input type="number" id="mileageInput" placeholder="숫자만 입력 (예: 12345)" style="margin-top:2px;">
         <label>사진 선택</label>
         <input type="file" id="photoInput" accept="image/*">
         <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">안전 초고속 업로드</button>
@@ -181,7 +179,9 @@
     <div class="container admin-wide">
       <div class="admin-header">
         <div class="admin-welcome-box">
-          <span style="font-weight:800; color:#1a73e8; font-size:1.1rem;" id="adminGreetingName"></span>님 반갑습니다!
+          <span style="background:#1a73e8; color:white; padding:3px 8px; border-radius:12px; font-size:0.7rem; font-weight:bold; margin-right:4px;">관리자</span>
+          <span style="font-weight:800; color:#1a73e8; font-size:1.1rem;" id="adminGreetingDisplay"></span>님 반갑습니다!<br>
+          <span style="font-size:0.8rem; color:#64748b; margin-top:5px; display:inline-block;">종합 관제 대시보드 접속 중</span>
         </div>
         <button class="btn-solid" style="width:auto; padding:8px 12px; margin:0;" onclick="logout()">로그아웃</button>
       </div>
@@ -199,13 +199,20 @@
         
         <div class="stats-grid">
           <div class="stat-card"><h3>금일 가동 호차</h3><div class="num" id="statVehicle">0</div></div>
-          <div class="stat-card"><h3>금일 총 배송건</h3><div class="num" id="statTotal">0</div></div>
+          <div class="stat-card"><h3>금일 병원 착수건</h3><div class="num" id="statTotal">0</div></div>
           <div class="stat-card"><h3>배송 완료</h3><div class="num" style="color:#16a34a;" id="statDone">0</div></div>
           <div class="stat-card alert"><h3>미완료 (이동중)</h3><div class="num" id="statMissing">0</div></div>
         </div>
         
-        <div class="search-box">
-          <input type="text" id="adminSearchName" placeholder="기사 이름, 병원명, 호차 검색..." onkeyup="filterAdminTable()">
+        <div class="search-box-wrap" style="display:flex; gap:10px; margin-bottom:15px; align-items:center;">
+          <select id="adminSearchFilter" style="width:120px; flex:none; margin:0;">
+            <option value="all">전체</option>
+            <option value="driver">기사명</option>
+            <option value="hospital">병원명</option>
+            <option value="vehicle">호차</option>
+          </select>
+          <input type="text" id="adminSearchName" placeholder="검색어 입력..." style="margin:0; flex:1;">
+          <button class="btn-solid" style="width:80px; flex:none; margin:0;" onclick="filterAdminTable()">검색</button>
         </div>
 
         <table>
@@ -218,7 +225,7 @@
 
       <div id="adminPane_analytics" class="tab-content">
         <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-          <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 기사별 이력 및 주행거리 현황입니다.</p></div>
+          <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 기사별 이력 및 운행거리를 확인합니다.</p></div>
           <input type="month" id="adminMonthStats" style="width:130px; margin:0;" onchange="loadAdminAnalytics()">
         </div>
 
@@ -239,7 +246,7 @@
         
         <h3 style="font-size:1.1rem; margin-top:20px;">기사님별 월간 총 주행거리 현황</h3>
         <table>
-          <thead><tr><th>기사명</th><th>월 누적 착수건</th><th>평균 배송완료시간</th><th>월 총 운행거리</th></tr></thead>
+          <thead><tr><th>기사명</th><th>월 누적 착수건</th><th>평균 배송완료시간</th><th>월 총 운행거리(추정)</th></tr></thead>
           <tbody id="adminVehicleBody"></tbody>
         </table>
         
@@ -261,7 +268,7 @@
           </div>
         </div>
         <div style="overflow-x:auto;">
-          <table style="min-width:600px;">
+          <table style="min-width: 600px;">
             <thead><tr><th>이름</th><th>아이디(뒤8자리)</th><th>연락처</th><th>차량번호</th><th>계정 관리</th></tr></thead>
             <tbody id="adminDriverBody"></tbody>
           </table>
@@ -275,7 +282,9 @@
     let adminDailyData = []; 
     let globalPhotosArray = [];
     let selectedLoginRole = '';
-    let compulsoryChangeId = ''; // 비밀번호 강제 교체 트래킹 주체
+    let compulsoryChangeId = ''; 
+    
+    let chartDailyIns, chartHospitalIns, chartVehicleIns;
 
     function switchMainView(viewId) {
       document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
@@ -321,10 +330,10 @@
       callGasApi('verifyLogin', { id, password: pw }).then(res => {
         closeConfirm();
         if(res.success) {
-          // 🌟 개선1: 초기 강제 변경 팝업 전격 부활
           if(res.isFirstLogin) {
             compulsoryChangeId = id;
             switchMainView('passwordChangeView');
+            showCustomAlert('초기 비밀번호를 사용 중입니다. 안전을 위해 새 비밀번호로 변경해 주세요.');
           } else {
             loginSuccess(id, res.role, res.name);
           }
@@ -340,7 +349,7 @@
       
       callGasApi('changePassword', { id: compulsoryChangeId, newPassword: p1 }).then(res => {
         if(res.success) {
-          showCustomAlert('비밀번호 변경이 정상 완료되었습니다. 새로운 패스워드로 로그인해 주세요.', () => {
+          showCustomAlert('비밀번호가 안전하게 변경되었습니다. 다시 로그인해 주세요.', () => {
             switchMainView('loginView');
             document.getElementById('userId').value = compulsoryChangeId;
             document.getElementById('userPw').value = '';
@@ -353,13 +362,13 @@
       localStorage.setItem('currentUser', id); localStorage.setItem('userRole', role); localStorage.setItem('userName', name);
       
       if(role === 'driver') {
-        document.getElementById('driverNameDisplay').innerText = name;
+        document.getElementById('driverNameDisplay').innerText = `${name}`;
         switchMainView('driverView');
         document.getElementById('masterDate').value = new Date().toISOString().substring(0,10);
         document.getElementById('filterMonth').value = new Date().toISOString().substring(0,7);
         loadDispatchList(); 
       } else if (role === 'admin' || role === 'manager') {
-        document.getElementById('adminGreetingName').innerText = name;
+        document.getElementById('adminGreetingDisplay').innerText = `${name}`;
         switchMainView('adminView');
         document.getElementById('adminDate').value = new Date().toISOString().substring(0,10);
         document.getElementById('adminMonthStats').value = new Date().toISOString().substring(0,7);
@@ -367,7 +376,7 @@
       }
     }
 
-    // --- 기사님 기능 (아코디언 토글 및 원터치 복사 추가) ---
+    // --- 기사님 기능 ---
     function switchTab(tab) {
       ['dispatch','upload','history'].forEach(t => {
         document.getElementById('pane_'+t).classList.remove('active');
@@ -381,12 +390,12 @@
     function syncDateChange() { loadDispatchList(); }
 
     function copyAddress(txt) {
-      navigator.clipboard.writeText(txt).then(() => { showCustomAlert('거래처 주소가 클립보드에 복사되었습니다.'); });
+      navigator.clipboard.writeText(txt).then(() => { showCustomAlert('주소가 복사되었습니다.'); });
     }
 
     function toggleAccordion(id) {
-      const box = document.getElementById(id);
-      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+      const el = document.getElementById(id);
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
     }
 
     function loadDispatchList() {
@@ -400,22 +409,22 @@
             document.getElementById('vehicleDisplay').innerText = `[당일배정: ${res.vehicle}]`;
             let html = '';
             res.data.forEach(item => {
+              // 🌟 여러 품목의 순번을 합쳐 버튼 이벤트에 전송
               let btn = item.arrivalTime ? `<span class="arrival-done">도착 ${item.arrivalTime}</span>` : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
-              // 🌟 개선5: 실종되었던 아코디언 상세 및 주소 복사 버튼 완벽 재배치
+              
               html += `
               <div class="dispatch-card">
-                <div style="display:flex; justify-content:between; align-items:center; cursor:pointer;" onclick="toggleAccordion('acco_${item.orderSeq}')">
-                  <h4 style="flex:1;">${item.orderSeq}. ${item.clientName}</h4>
+                <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleAccordion('acco_${item.orderSeq.replace(/,/g, '')}')">
+                  <h4 style="margin:0;">${item.clientName}</h4>
                   <span style="font-size:0.75rem; color:#1a73e8; font-weight:bold;">상세정보 ▼</span>
                 </div>
-                <div id="acco_${item.orderSeq}" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #eee;">
+                <div id="acco_${item.orderSeq.replace(/,/g, '')}" style="display:none; margin-top:10px; border-top:1px dashed #e2e8f0; padding-top:10px;">
                   <div class="card-meta-item">📍 주소: ${item.clientAddr} <button class="btn-copy" onclick="copyAddress('${item.clientAddr}')">복사</button></div>
-                  <div class="card-meta-item">📞 전화: ${item.clientPhone}</div>
-                  <div class="card-meta-item">📦 제품: ${item.prodName} (${item.qty}개)</div>
-                  <div class="card-meta-item">📝 비고: ${item.remarks || '없음'}</div>
+                  <div class="card-meta-item">📞 번호: ${item.clientPhone}</div>
+                  <div class="card-meta-item">📦 품명: ${item.prodName}</div>
+                  <div class="card-meta-item">💡 비고: ${item.remarks || '없음'}</div>
+                  <div style="margin-top:8px;">${btn}</div><div style="clear:both;"></div>
                 </div>
-                <div style="margin-top:10px; min-height:30px;">${btn}</div>
-                <div style="clear:both;"></div>
               </div>`;
             });
             document.getElementById('dispatchListContainer').innerHTML = html;
@@ -425,7 +434,7 @@
     }
 
     function markArrival(orderNum, orderSeq) {
-      showCustomAlert("현재 시간으로 거래처 도착을 기록하시겠습니까?", () => {
+      showCustomAlert("현재 시간으로 도착을 기록하시겠습니까?", () => {
         callGasApi('recordArrivalTime', { driverId: localStorage.getItem('currentUser'), targetDate: document.getElementById('masterDate').value, orderNum, orderSeq }).then(res => {
           if(res.success) loadDispatchList();
           else showCustomAlert(res.message);
@@ -436,9 +445,9 @@
     function uploadPhoto() {
       const fileInput = document.getElementById('photoInput');
       const stage = document.getElementById('photoStage').value;
-      const mileage = document.getElementById('mileageInput').value; // 수기 키로수 추출
+      const mileage = document.getElementById('mileageInput').value;
       if(!stage || !fileInput.files[0]) return showCustomAlert('단계와 사진을 선택하세요.');
-      showCustomAlert('사진을 압축하고 업로드합니다.\n잠시만 기다려주세요!');
+      showCustomAlert('초고속 서버로 전송 중입니다...\n(네트워크에 따라 수 초 소요)');
       
       const reader = new FileReader();
       reader.onload = e => {
@@ -446,16 +455,16 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
-          if (w > 1000) { h *= 1000/w; w = 1000; }
+          if (w > 800) { h *= 800/w; w = 800; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           
           callGasApi('uploadDashboardPhoto', { 
             base64Data: canvas.toDataURL('image/jpeg', 0.6), fileName: 'photo.jpg', 
             driverId: localStorage.getItem('currentUser'), stage: stage, customDate: document.getElementById('masterDate').value,
-            mileage: mileage 
+            mileage: mileage
           }).then(res => {
-            if(res.success) { showCustomAlert("업로드 성공!"); fileInput.value = ''; document.getElementById('mileageInput').value = ''; loadDriverPhotos(); }
+            if(res.success) { showCustomAlert("업로드 완료!"); fileInput.value = ''; document.getElementById('mileageInput').value = ''; loadDriverPhotos(); }
             else showCustomAlert(res.message);
           });
         };
@@ -470,6 +479,7 @@
       });
     }
 
+    // 🌟 요청하신 깔끔한 영수증 증빙판 디자인 구현
     function renderPhotoGrid() {
       const month = document.getElementById('filterMonth').value;
       const tbody = document.getElementById('gridTableBody');
@@ -478,25 +488,31 @@
       globalPhotosArray.forEach(p => {
         if(p.dateKey.startsWith(month)) {
           if(!grid[p.dateKey]) grid[p.dateKey] = {};
-          grid[p.dateKey][p.stage] = p;
+          let cleanStage = (p.stage || "").replace(/\s/g, ''); 
+          grid[p.dateKey][cleanStage] = p;
         }
       });
       Object.keys(grid).sort().reverse().forEach(date => {
-        let tr = `<tr><td>${date.substring(5)}</td>`;
+        let tr = `<tr><td style="font-size:0.75rem;">${date.substring(5)}</td>`;
         ['1.자택출발','2.센터입차','3.센터복귀','4.자택도착'].forEach(s => {
           if(grid[date][s]) {
-            // 🌟 개선6: 영수증 밑에 입력했던 수기 키로수 라벨 출력 연출
-            let mileageLabel = grid[date][s].mileage !== '0' ? `<br><span style="font-size:0.65rem; color:#475569; font-weight:bold;">(${grid[date][s].mileage}km)</span>` : '';
-            tr += `<td><a href="${grid[date][s].url}" target="_blank" style="font-size:0.75rem; display:block;">보기</a>${mileageLabel}<span style="color:red; cursor:pointer; font-size:0.75rem;" onclick="deleteP('${grid[date][s].fileId}')">삭제</span></td>`;
+            let kmText = grid[date][s].mileage > 0 ? `<div style="font-weight:bold; font-size:0.8rem; margin-bottom:4px; color:#333;">${grid[date][s].mileage}km</div>` : '';
+            tr += `<td style="vertical-align:middle;">
+                     ${kmText}
+                     <div>
+                       <a href="${grid[date][s].url}" target="_blank" style="color:#1a73e8; font-weight:bold; font-size:0.8rem; text-decoration:none; margin-right:5px;">확인</a>
+                       <span style="color:#dc2626; cursor:pointer; font-weight:bold; font-size:0.8rem;" onclick="deleteP('${grid[date][s].fileId}')">삭제</span>
+                     </div>
+                   </td>`;
           }
-          else tr += `<td>-</td>`;
+          else tr += `<td style="color:#cbd5e1; font-size:0.8rem;">-</td>`;
         });
         tbody.innerHTML += tr + `</tr>`;
       });
     }
 
     function deleteP(fileId) {
-      showCustomAlert('이 사진을 삭제하시겠습니까?', () => {
+      showCustomAlert('해당 내역을 완전히 삭제하시겠습니까?\n(드라이브 원본 파일도 함께 삭제됩니다.)', () => {
         callGasApi('deleteDriverPhoto', { fileId, driverId: localStorage.getItem('currentUser') }).then(res => {
           if(res.success) loadDriverPhotos();
         });
@@ -530,14 +546,25 @@
       });
     }
 
+    // 🌟 분리된 검색 버튼 클릭 시에만 작동 + 필터 적용
     function filterAdminTable() {
       const searchTxt = document.getElementById('adminSearchName').value.trim();
+      const filterType = document.getElementById('adminSearchFilter').value;
       const tbody = document.getElementById('adminDispatchBody');
       tbody.innerHTML = '';
       let total = 0, done = 0, missing = 0;
 
       adminDailyData.forEach(item => {
-        if(searchTxt && !item.driverName.includes(searchTxt) && !item.vehicle.includes(searchTxt) && !item.clientName.includes(searchTxt)) return;
+        let match = false;
+        if(!searchTxt) match = true;
+        else if (filterType === 'all') {
+          if (item.driverName.includes(searchTxt) || item.vehicle.includes(searchTxt) || item.clientName.includes(searchTxt)) match = true;
+        } else if (filterType === 'driver' && item.driverName.includes(searchTxt)) match = true;
+        else if (filterType === 'hospital' && item.clientName.includes(searchTxt)) match = true;
+        else if (filterType === 'vehicle' && item.vehicle.includes(searchTxt)) match = true;
+
+        if(!match) return;
+
         total++;
         if(item.arrivalTime) done++; else missing++;
 
@@ -548,7 +575,7 @@
           <td>${item.vehicle}</td>
           <td><strong>${item.driverName}</strong></td>
           <td>${item.driverPhone}</td>
-          <td>${item.clientName}</td>
+          <td style="text-align:left;">${item.clientName}</td>
           <td style="font-weight:bold; color:${item.arrivalTime ? '#16a34a' : '#dc2626'}">${item.arrivalTime || '미완료'}</td>
         `;
         tbody.appendChild(tr);
@@ -566,19 +593,18 @@
         if(res.success) {
           renderCharts(res.data, res.hospitalData, res.driverData);
           
-          // 🌟 기사별 누적 주행거리 테이블 렌더링 반영
           const vBody = document.getElementById('adminVehicleBody');
           vBody.innerHTML = '';
           res.driverData.forEach(v => {
              let kmText = v.totalKm > 0 ? `${v.totalKm.toLocaleString()} km` : '계산대기';
-             vBody.innerHTML += `<tr><td><strong>${v.driverName} 기사님</strong></td><td>${v.totalDeliveries}건</td><td>${v.avgEndTime}</td><td style="color:#1a73e8; font-weight:bold;">${kmText}</td></tr>`;
+             vBody.innerHTML += `<tr><td><strong>${v.driverName}</strong></td><td>${v.totalDeliveries}건</td><td>${v.avgEndTime}</td><td style="color:#1a73e8; font-weight:bold;">${kmText}</td></tr>`;
           });
           if(res.driverData.length === 0) vBody.innerHTML = '<tr><td colspan="4">데이터 없음</td></tr>';
 
           const hBody = document.getElementById('adminHospitalsBody');
           hBody.innerHTML = '';
           res.hospitalData.forEach(h => {
-             hBody.innerHTML += `<tr><td><strong>${h.hospital}</strong></td><td>${h.count}건</td><td>${h.avgTime}</td></tr>`;
+             hBody.innerHTML += `<tr><td style="text-align:left;"><strong>${h.hospital}</strong></td><td>${h.count}건</td><td>${h.avgTime}</td></tr>`;
           });
           if(res.hospitalData.length === 0) hBody.innerHTML = '<tr><td colspan="3">데이터 없음</td></tr>';
         }
@@ -614,7 +640,6 @@
         options: { responsive: true, maintainAspectRatio: false }
       });
 
-      // 🌟 기사 중심의 시각화 그래프로 전격 리밸런싱
       const vehicleCtx = document.getElementById('chartVehicle').getContext('2d');
       chartVehicleIns = new Chart(vehicleCtx, {
         type: 'bar',
@@ -649,7 +674,7 @@
     }
 
     function resetDriverPw(id) {
-      showCustomAlert('해당 기사님의 비밀번호를 [0000]으로 초기화하시겠습니까?', () => {
+      showCustomAlert('비밀번호를 [0000]으로 초기화하시겠습니까?', () => {
          callGasApi('resetDriverPassword', { id }).then(res => {
             if(res.success) showCustomAlert('초기화 완료');
             else showCustomAlert(res.message);

@@ -1,6 +1,5 @@
 const { google } = require('googleapis');
 const crypto = require('crypto');
-const stream = require('stream'); 
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
@@ -17,7 +16,6 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // 🌟 작동을 방해하던 불필요한 예외처리 제거 (순정 인증 파싱)
     const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     if (credentials.private_key) {
       credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
@@ -25,14 +23,14 @@ export default async function handler(req, res) {
 
     const auth = new google.auth.GoogleAuth({
       credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
-    const drive = google.drive({ version: 'v3', auth });
     
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyppHv-1YCsvplSP7TOoS5q0djhye9-1oBFx-jJDZM0B9vZi2wI6s7GRpPK_d_E0g-Z/exec";
 
     // 1. 로그인
     if (action === 'verifyLogin') {
@@ -141,7 +139,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 🌟 5. 사진 업로드 (잘 작동하던 원본 PassThrough 스트림 로직 복구)
+    // 5. 사진 업로드 (제공해주신 구글 웹앱 URL 연동 및 속도 튜닝)
     if (action === 'uploadDashboardPhoto') {
       try {
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
@@ -156,41 +154,36 @@ export default async function handler(req, res) {
         const dayStr = `${String(tDate.getDate()).padStart(2,'0')}일`;
         const timeStr = `${String(kst.getUTCHours()).padStart(2,'0')}${String(kst.getUTCMinutes()).padStart(2,'0')}${String(kst.getUTCSeconds()).padStart(2,'0')}`;
 
-        async function getOrCreateFolder(name, parentId) {
-          const query = `name='${name}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-          const res = await drive.files.list({ q: query, fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true });
-          if (res.data.files.length > 0) return res.data.files[0].id;
-          const createRes = await drive.files.create({ requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }, fields: 'id', supportsAllDrives: true });
-          return createRes.data.id;
-        }
-
-        const monthFolderId = await getOrCreateFolder(yearMonthStr, FOLDER_ID);
-        const dayFolderId = await getOrCreateFolder(dayStr, monthFolderId);
-
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
         const newFileName = `${driverName}_${body.stage}_${carNum}_${timeStr}${ext}`;
-        
-        const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
-        const buffer = Buffer.from(body.base64Data.split(',')[1], 'base64');
-        const bufferStream = new stream.PassThrough();
-        bufferStream.end(buffer);
 
-        const fileRes = await drive.files.create({
-          requestBody: { name: newFileName, parents: [dayFolderId] }, media: { mimeType: mimeType, body: bufferStream }, fields: 'id, webViewLink', supportsAllDrives: true
+        // GAS 웹앱 호출
+        const gasResponse = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          body: JSON.stringify({
+            folderId: FOLDER_ID,
+            fileName: newFileName,
+            base64Data: body.base64Data,
+            yearMonthStr: yearMonthStr,
+            dayStr: dayStr
+          })
         });
-        await drive.permissions.create({ fileId: fileRes.data.id, requestBody: { role: 'reader', type: 'anyone' }, supportsAllDrives: true });
-        
+
+        const gasResult = await gasResponse.json();
+        if (!gasResult.success) throw new Error(gasResult.message || "GAS 업로드 실패");
+
+        // Photos 시트 기록 (날짜, 기사아이디, 이름, 차량번호, 구분, 사진URL, 드라이브파일ID)
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:G', valueInputOption: 'USER_ENTERED',
-          requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, fileRes.data.webViewLink, fileRes.data.id ]] }
+          requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, gasResult.url, gasResult.id ]] }
         });
-        return res.status(200).json({ success: true, url: fileRes.data.webViewLink });
+        return res.status(200).json({ success: true, url: gasResult.url });
       } catch (err) {
         return res.status(200).json({ success: false, message: `구글 연동 오류: ${err.message}` });
       }
     }
 
-    // 🌟 6. 사진 조회 (과거의 "2026. 7. 9." 같은 비정형 날짜를 "2026-07-09"로 강제 매칭하여 기존 기록 완벽 복원)
+    // 6. 사진 조회 (다양한 날짜 텍스트 파싱 포맷 적용)
     if (action === 'getDriverPhotos') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A2:G' });
       const photos = [];
@@ -199,19 +192,19 @@ export default async function handler(req, res) {
           let rawDate = String(row[0] || "");
           let cleanDate = rawDate.substring(0, 10);
           
-          // "2026. 7. 9" 형태의 날짜를 감지해서 "2026-07-09" 로 포맷을 맞춤 (이게 안 돼서 과거 기록이 안 떴던 것입니다!)
           let match = rawDate.match(/^(\d{4})[./년\s]+(\d{1,2})[./월\s]+(\d{1,2})/);
           if (match) {
             cleanDate = `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
           }
 
-          photos.push({ dateKey: cleanDate, stage: row[4] || "", url: row[5] || "", fileId: row[6] || "" });
+          let cleanStage = String(row[4] || "").replace(/\s/g, ''); 
+          photos.push({ dateKey: cleanDate, stage: cleanStage, url: row[5] || "", fileId: row[6] || "" });
         }
       }
       return res.status(200).json({ success: true, data: photos });
     }
 
-    // 7. 삭제
+    // 7. 사진 삭제
     if (action === 'deleteDriverPhoto') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A1:G' });
       const data = response.data.values || [];
@@ -222,7 +215,6 @@ export default async function handler(req, res) {
         const sheetId = sheetMeta.data.sheets.find(s => s.properties.title === 'Photos').properties.sheetId;
         await sheets.spreadsheets.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { requests: [{ deleteDimension: { range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 } } }] } });
       }
-      try { await drive.files.update({ fileId: body.fileId, requestBody: { trashed: true }, supportsAllDrives: true }); } catch(e) {}
       return res.status(200).json({ success: true });
     }
 
@@ -375,6 +367,40 @@ export default async function handler(req, res) {
         requestBody: { values: [['driver', body.name, `'${loginId}`, `'${formatPhone}`, hashPassword('0000'), body.carNumber, 'Y']] }
       });
       return res.status(200).json({ success: true });
+    }
+
+    // 12. 기사 비밀번호 초기화 (0000으로 강제 리셋 및 초기로그인 활성화)
+    if (action === 'resetDriverPassword') {
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
+      const rows = response.data.values || [];
+      for (let i = 0; i < rows.length; i++) {
+        if (String(rows[i][2]) === String(body.id)) {
+          await sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: `Users!E${i + 1}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[hashPassword('0000')]] } });
+          await sheets.spreadsheets.values.update({ spreadsheetId: SPREADSHEET_ID, range: `Users!G${i + 1}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [['Y']] } });
+          return res.status(200).json({ success: true });
+        }
+      }
+      return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    // 13. 기사 계정 삭제
+    if (action === 'deleteDriverAccount') {
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
+      const rows = response.data.values || [];
+      let rowIndex = -1;
+      for (let i = 0; i < rows.length; i++) {
+        if (String(rows[i][2]) === String(body.id)) { rowIndex = i; break; }
+      }
+      if (rowIndex !== -1) {
+        const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+        const sheetId = sheetMeta.data.sheets.find(s => s.properties.title === 'Users').properties.sheetId;
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: SPREADSHEET_ID,
+          requestBody: { requests: [{ deleteDimension: { range: { sheetId: sheetId, dimension: 'ROWS', startIndex: rowIndex, endIndex: rowIndex + 1 } } }] }
+        });
+        return res.status(200).json({ success: true });
+      }
+      return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
     return res.status(400).json({ success: false, message: '알 수 없는 요청입니다.' });

@@ -9,6 +9,7 @@ function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
+// 🌟 시트 이름 동적 생성 포맷 함수 (26.07 형태로 변환)
 function formatYYMM(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -27,22 +28,47 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
+    // 🌟 무적의 구글 인증키 파싱 로직 (어떤 형태든 강제로 읽어냅니다)
     let credentials;
-    try {
-      let rawCreds = process.env.GOOGLE_CREDENTIALS || '{}';
-      rawCreds = rawCreds.replace(/\n/g, '\\n').replace(/\r/g, ''); 
-      credentials = JSON.parse(rawCreds); 
-      if (credentials.private_key) { credentials.private_key = credentials.private_key.replace(/\\n/g, '\n'); }
-    } catch (parseErr) { return res.status(200).json({ success: false, message: '인증키 설정 오류' }); }
+    const envCreds = process.env.GOOGLE_CREDENTIALS;
+    
+    if (!envCreds) {
+      return res.status(200).json({ success: false, message: '환경변수 누락: Vercel 설정에 GOOGLE_CREDENTIALS 값이 없습니다.' });
+    }
 
-    const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
+    if (typeof envCreds === 'object') {
+      credentials = envCreds;
+    } else {
+      try {
+        credentials = JSON.parse(envCreds);
+      } catch (e1) {
+        try {
+          // Vercel에서 엔터가 잘못 들어간 경우 강제 치환 후 재시도
+          credentials = JSON.parse(envCreds.replace(/\n/g, '\\n').replace(/\r/g, ''));
+        } catch (e2) {
+          // 그래도 실패하면 구체적인 원인을 화면에 출력
+          return res.status(200).json({ success: false, message: `인증키 파싱 실패: JSON 형식이 깨졌습니다. (${e2.message})` });
+        }
+      }
+    }
+
+    if (credentials && credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    }
+    // ----------------------------------------
+
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
     const sheets = google.sheets({ version: 'v4', auth });
     
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
     
-    // 🌟 1단계에서 복사한 새로운 웹앱 URL을 여기에 붙여넣어 주세요! (필수)
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwe4dJp1-Eow6tC4qB_xWqPof-eF7k1R45uQfO9u-iNlZ7lJ-yUfL_E09l-mP6rIawG/exec";
+    // 선생님의 최신 구글 앱스 스크립트(GAS) 웹앱 URL 연동
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyppHv-1YCsvplSP7TOoS5q0djhye9-1oBFx-jJDZM0B9vZi2wI6s7GRpPK_d_E0g-Z/exec";
 
     // 1. 로그인
     if (action === 'verifyLogin') {
@@ -71,7 +97,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사 배차 조회 (동일 병원 품목 합치기 적용)
+    // 3. 기사 배차 조회 (동일 병원 품목 합치기 적용 및 연월 시트포맷 연동)
     if (action === 'getDriverDispatch') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -131,7 +157,7 @@ export default async function handler(req, res) {
         }
 
         const dispatchData = response.data.valueRanges[2].values || [];
-        const seqArray = String(body.orderSeq).split(',').map(s => s.trim()); // 묶인 순번 분리
+        const seqArray = String(body.orderSeq).split(',').map(s => s.trim()); 
         const kst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
         const timeStr = `${String(kst.getUTCHours()).padStart(2, '0')}:${String(kst.getUTCMinutes()).padStart(2, '0')}`;
 
@@ -154,7 +180,6 @@ export default async function handler(req, res) {
         const dateString = body.customDate.substring(0, 10);
         const stageClean = body.stage.replace(/\s/g, '');
         
-        // 🌟 중복 기입 방지 로직
         const pRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:G' });
         for(let r of (pRes.data.values || [])) {
           if(r[0] && String(r[0]).substring(0,10) === dateString && String(r[1]) === String(body.driverId) && String(r[4]).replace(/\s/g,'') === stageClean) {
@@ -184,14 +209,14 @@ export default async function handler(req, res) {
           method: 'POST', body: JSON.stringify({ folderId: FOLDER_ID, fileName: newFileName, base64Data: body.base64Data, yearStr, monthStr, dayStr })
         });
         const gasResult = await gasResponse.json();
-        if (!gasResult.success) throw new Error("GAS 업로드 실패");
+        if (!gasResult.success) throw new Error("GAS 파일 생성 실패");
 
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:H', valueInputOption: 'USER_ENTERED',
           requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, gasResult.url, gasResult.id, body.mileage || '0' ]] }
         });
 
-        // 🌟 운행거리 시트 누적 로직
+        // 운행거리 시트 누적 로직
         if (body.mileage) {
           const prefix = formatYYMM(body.customDate);
           const cleanPhone = originPhone.replace(/[-']/g, '');
@@ -231,10 +256,10 @@ export default async function handler(req, res) {
           } catch(se) {}
         }
         return res.status(200).json({ success: true, url: gasResult.url });
-      } catch (err) { return res.status(200).json({ success: false, message: `구글 연동 오류: ${err.message}` }); }
+      } catch (err) { return res.status(200).json({ success: false, message: `서버 전송 오류: ${err.message}` }); }
     }
 
-    // 6. 사진 조회 (과거 텍스트 날짜 파싱)
+    // 6. 사진 조회
     if (action === 'getDriverPhotos') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A2:H' });
       const photos = [];
@@ -250,11 +275,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data: photos });
     }
 
-    // 7. 사진 삭제 (🌟 실제 구글 드라이브 파일까지 삭제 연동)
+    // 7. 사진 삭제 (실제 구글 드라이브 파일까지 연동 삭제)
     if (action === 'deleteDriverPhoto') {
       try {
         await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) });
-      } catch (e) { console.log('드라이브 파일 삭제 실패 (무시됨)'); }
+      } catch (e) { console.log('드라이브 파일 삭제 통신 에러'); }
 
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A1:G' });
       const data = response.data.values || [];
@@ -310,7 +335,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패' }); }
     }
 
-    // 9. 월별 통계 분석 (운행거리 시트 부재 에러 완벽 방어 처리)
+    // 9. 월별 통계 분석 (운행거리 부재 에러 방어)
     if (action === 'getAdminMonthlyStats') {
       const prefix = formatYYMM(body.targetMonth);
       let dispatch = [], users = [], assign = [], mileageRows = [];
@@ -326,7 +351,7 @@ export default async function handler(req, res) {
       try {
         const mRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A2:H` });
         mileageRows = mRes.data.values || [];
-      } catch(e) {} // 운행거리 시트가 아직 없어도 차트는 정상 출력되도록 방어
+      } catch(e) {} 
 
       let statsObj = {}, hospitalStats = {}, driverStats = {};
       const timeToMins = (t) => { if(!t || !t.includes(':')) return 0; const [h, m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };

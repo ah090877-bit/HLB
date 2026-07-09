@@ -32,17 +32,14 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* 기사 아코디언 및 복사버튼 */
+    /* 기사 배차 레이아웃 (도착버튼 외부배치) */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #1a73e8; padding:14px;}
-    .dispatch-card h4 { margin: 0; font-size: 1.05rem; }
     .card-meta-item { font-size: 0.85rem; margin-bottom: 5px; color:#475569; line-height:1.4;}
-    .btn-arrival { background-color: #1a73e8; color: white; padding: 8px 12px; border-radius: 6px; border:none; font-size: 0.75rem; cursor: pointer; float:right;}
-    .arrival-done { color: #16a34a; background-color: #f0fdf4; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid #bbf7d0; float:right;}
+    .btn-arrival { background-color: #1a73e8; color: white; padding: 8px 12px; border-radius: 6px; border:none; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+    .arrival-done { color: #16a34a; background-color: #f0fdf4; padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;}
     .btn-copy { background: #e2e8f0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; color: #333; margin-left: 5px; font-weight: bold;}
 
-    /* 🌟 관리자 인삿말 네모상자 */
     .admin-welcome-box { border: 2px solid #1a73e8; background-color: #f0f7ff; padding: 12px 18px; border-radius: 8px; display: inline-block; text-align: left; }
-
     .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
     .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
@@ -60,7 +57,6 @@
     .chart-container { background: #fff; padding: 15px; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); height: 280px; }
     .chart-container.full-width { grid-column: span 2; }
     
-    /* 🌟 모바일 깨짐 방지용 */
     .driver-register-form { display: flex; gap: 10px; flex-wrap: wrap; }
     .driver-register-form input { flex: 1; min-width: 140px; }
     @media(max-width: 768px){ 
@@ -100,10 +96,10 @@
   <div id="passwordChangeView" class="view-container">
     <div class="container">
       <h2>초기 비밀번호 변경</h2>
-      <p class="subtitle">보안을 위해 새 비밀번호를 설정해 주세요.</p>
-      <input type="password" id="newPw" placeholder="새 비밀번호 입력" required>
-      <input type="password" id="newPwConfirm" placeholder="새 비밀번호 확인" required>
-      <button class="btn-solid" onclick="executePasswordChange()">비밀번호 변경하기</button>
+      <p class="subtitle">안전한 시스템 관제를 위해 신규 비밀번호를 지정하세요.</p>
+      <input type="password" id="newPw" placeholder="새 비밀번호 입력">
+      <input type="password" id="newPwConfirm" placeholder="새 비밀번호 재확인">
+      <button class="btn-solid" onclick="executePasswordChange()">변경 완료하기</button>
     </div>
   </div>
 
@@ -129,7 +125,7 @@
   <div id="driverView" class="view-container">
     <div class="container wide">
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 12px;">
-        <div><span style="background:#188038; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">기사</span> <strong id="driverNameDisplay" style="font-size:1.1rem; margin-left:4px;"></strong></div>
+        <div><span style="background:#188038; color:white; padding:4px 10px; border-radius:20px; font-size:0.75rem; font-weight:bold;">기사</span> <strong id="driverNameDisplay" style="font-size:1.1rem; margin-left:4px;"></strong>님 반갑습니다!</div>
         <input type="date" id="masterDate" style="width:auto; margin:0; padding:4px; font-size:0.85rem;" onchange="syncDateChange()">
       </div>
       <div class="tabs-nav">
@@ -152,8 +148,10 @@
           <option value="3.센터 복귀">3. 센터 복귀</option>
           <option value="4.자택 도착">4. 자택 도착</option>
         </select>
+        
         <label style="margin-top:10px; display:block;">현재 계기판 키로수 (km)</label>
-        <input type="number" id="mileageInput" placeholder="숫자만 입력 (예: 12345)" style="margin-top:2px;">
+        <input type="number" id="mileageInput" placeholder="숫자만 입력 (예: 45012)" style="margin-top:2px;">
+        
         <label>사진 선택</label>
         <input type="file" id="photoInput" accept="image/*">
         <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">안전 초고속 업로드</button>
@@ -225,7 +223,7 @@
 
       <div id="adminPane_analytics" class="tab-content">
         <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-          <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 기사별 이력 및 운행거리를 확인합니다.</p></div>
+          <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 기사별 이력 및 주행거리 현황입니다.</p></div>
           <input type="month" id="adminMonthStats" style="width:130px; margin:0;" onchange="loadAdminAnalytics()">
         </div>
 
@@ -376,7 +374,6 @@
       }
     }
 
-    // --- 기사님 기능 ---
     function switchTab(tab) {
       ['dispatch','upload','history'].forEach(t => {
         document.getElementById('pane_'+t).classList.remove('active');
@@ -409,21 +406,27 @@
             document.getElementById('vehicleDisplay').innerText = `[당일배정: ${res.vehicle}]`;
             let html = '';
             res.data.forEach(item => {
-              // 🌟 여러 품목의 순번을 합쳐 버튼 이벤트에 전송
+              // 🌟 순번(orderSeq)이 여러 개일 수 있으므로 ID에서 특수문자 완벽 제거
+              let cleanId = item.orderSeq.replace(/,/g, '').replace(/\s/g, '');
               let btn = item.arrivalTime ? `<span class="arrival-done">도착 ${item.arrivalTime}</span>` : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
               
+              // 🌟 버튼 외부 분리 및 직관적인 순번 UI
               html += `
               <div class="dispatch-card">
-                <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleAccordion('acco_${item.orderSeq.replace(/,/g, '')}')">
-                  <h4 style="margin:0;">${item.clientName}</h4>
-                  <span style="font-size:0.75rem; color:#1a73e8; font-weight:bold;">상세정보 ▼</span>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div style="flex:1; cursor:pointer;" onclick="toggleAccordion('acco_${cleanId}')">
+                    <h4 style="margin:0; font-size:1.05rem; color:#1e293b;">
+                      <span style="color:#1a73e8; font-size:0.9rem; margin-right:3px;">[순번: ${item.orderSeq}]</span> ${item.clientName}
+                      <span style="font-size:0.75rem; color:#94a3b8; margin-left:4px;">상세정보 ▼</span>
+                    </h4>
+                  </div>
+                  <div style="margin-left:10px;">${btn}</div>
                 </div>
-                <div id="acco_${item.orderSeq.replace(/,/g, '')}" style="display:none; margin-top:10px; border-top:1px dashed #e2e8f0; padding-top:10px;">
+                <div id="acco_${cleanId}" style="display:none; margin-top:10px; border-top:1px dashed #e2e8f0; padding-top:10px;">
                   <div class="card-meta-item">📍 주소: ${item.clientAddr} <button class="btn-copy" onclick="copyAddress('${item.clientAddr}')">복사</button></div>
                   <div class="card-meta-item">📞 번호: ${item.clientPhone}</div>
                   <div class="card-meta-item">📦 품명: ${item.prodName}</div>
                   <div class="card-meta-item">💡 비고: ${item.remarks || '없음'}</div>
-                  <div style="margin-top:8px;">${btn}</div><div style="clear:both;"></div>
                 </div>
               </div>`;
             });
@@ -479,7 +482,6 @@
       });
     }
 
-    // 🌟 요청하신 깔끔한 영수증 증빙판 디자인 구현
     function renderPhotoGrid() {
       const month = document.getElementById('filterMonth').value;
       const tbody = document.getElementById('gridTableBody');
@@ -519,7 +521,6 @@
       });
     }
 
-    // --- 관리자 기능 ---
     function switchAdminTab(tab) {
       ['dash','analytics','manage'].forEach(t => {
         document.getElementById('adminPane_'+t).classList.remove('active');
@@ -546,7 +547,6 @@
       });
     }
 
-    // 🌟 분리된 검색 버튼 클릭 시에만 작동 + 필터 적용
     function filterAdminTable() {
       const searchTxt = document.getElementById('adminSearchName').value.trim();
       const filterType = document.getElementById('adminSearchFilter').value;

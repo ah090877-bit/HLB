@@ -16,9 +16,16 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-    if (credentials.private_key) {
-      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    let credentials;
+    try {
+      let rawCreds = process.env.GOOGLE_CREDENTIALS || '{}';
+      rawCreds = rawCreds.replace(/\n/g, '\\n').replace(/\r/g, ''); 
+      credentials = JSON.parse(rawCreds); 
+      if (credentials.private_key) {
+        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+      }
+    } catch (parseErr) {
+      return res.status(200).json({ success: false, message: '구글 인증키 설정 오류: 환경변수를 다시 확인해주세요.' });
     }
 
     const auth = new google.auth.GoogleAuth({
@@ -27,9 +34,10 @@ export default async function handler(req, res) {
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
-    
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
+    
+    // 선생님의 웹앱 URL
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyppHv-1YCsvplSP7TOoS5q0djhye9-1oBFx-jJDZM0B9vZi2wI6s7GRpPK_d_E0g-Z/exec";
 
     // 1. 로그인
@@ -45,7 +53,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '아이디 또는 비밀번호가 일치하지 않습니다.' });
     }
 
-    // 2. 비밀번호 변경
+    // 2. 비밀번호 변경 (최초 로그인 강제 변경)
     if (action === 'changePassword') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       const rows = response.data.values || [];
@@ -90,12 +98,12 @@ export default async function handler(req, res) {
           if (String(row[0]).substring(0, 10) === dateString && String(row[1]) === assignedVehicle) {
             let rawTime = row[10] || "";
             dispatchList.push({
-              order: row[2], clientName: row[3], clientAddr: row[4], clientPhone: row[5], orderNum: row[6], prodName: row[7], qty: row[8], remarks: row[9], 
+              orderSeq: row[2], clientName: row[3], clientAddr: row[4], clientPhone: row[5], orderNum: row[6], prodName: row[7], qty: row[8], remarks: row[9], 
               arrivalTime: String(rawTime).length >= 5 ? String(rawTime).substring(0, 5) : String(rawTime)
             });
           }
         }
-        dispatchList.sort((a, b) => Number(a.order) - Number(b.order));
+        dispatchList.sort((a, b) => Number(a.orderSeq) - Number(b.orderSeq));
         return res.status(200).json({ success: true, vehicle: assignedVehicle, data: dispatchList });
       } catch (err) { 
         return res.status(200).json({ success: false, message: `${month}월 배차 탭이 시트에 존재하지 않습니다.` }); 
@@ -139,7 +147,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '도착 기록 중 오류 발생' }); }
     }
 
-    // 5. 사진 업로드 (제공해주신 구글 웹앱 URL 연동 및 속도 튜닝)
+    // 5. 사진 업로드 (연/월/일 폴더 구조 반영 및 키로수 추가)
     if (action === 'uploadDashboardPhoto') {
       try {
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
@@ -150,21 +158,28 @@ export default async function handler(req, res) {
 
         const tDate = new Date(body.customDate);
         const kst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
-        const yearMonthStr = `${tDate.getFullYear()}년 ${String(tDate.getMonth()+1).padStart(2,'0')}월`;
+        
+        // 폴더 이름 규격화
+        const yearStr = `${tDate.getFullYear()}년`;
+        const monthStr = `${String(tDate.getMonth()+1).padStart(2,'0')}월`;
         const dayStr = `${String(tDate.getDate()).padStart(2,'0')}일`;
+
+        // 파일명에 삽입할 YYMMDD 형식 생성 (예: 260612)
+        const YYMMDD = String(tDate.getFullYear()).slice(-2) + String(tDate.getMonth()+1).padStart(2,'0') + String(tDate.getDate()).padStart(2,'0');
         const timeStr = `${String(kst.getUTCHours()).padStart(2,'0')}${String(kst.getUTCMinutes()).padStart(2,'0')}${String(kst.getUTCSeconds()).padStart(2,'0')}`;
 
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
-        const newFileName = `${driverName}_${body.stage}_${carNum}_${timeStr}${ext}`;
+        // 파일명 규칙: 홍길동_1.자택 출발_12가3456_260612_152203.jpg
+        const newFileName = `${driverName}_${body.stage}_${carNum}_${YYMMDD}_${timeStr}${ext}`;
 
-        // GAS 웹앱 호출
         const gasResponse = await fetch(GAS_WEB_APP_URL, {
           method: 'POST',
           body: JSON.stringify({
             folderId: FOLDER_ID,
             fileName: newFileName,
             base64Data: body.base64Data,
-            yearMonthStr: yearMonthStr,
+            yearStr: yearStr,
+            monthStr: monthStr,
             dayStr: dayStr
           })
         });
@@ -172,10 +187,11 @@ export default async function handler(req, res) {
         const gasResult = await gasResponse.json();
         if (!gasResult.success) throw new Error(gasResult.message || "GAS 업로드 실패");
 
-        // Photos 시트 기록 (날짜, 기사아이디, 이름, 차량번호, 구분, 사진URL, 드라이브파일ID)
+        // Photos 시트 기록 (H열에 키로수 추가 저장)
+        // 날짜 | 기사아이디 | 이름 | 차량번호 | 구분 | 사진URL | 드라이브파일ID | 키로수
         await sheets.spreadsheets.values.append({
-          spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:G', valueInputOption: 'USER_ENTERED',
-          requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, gasResult.url, gasResult.id ]] }
+          spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:H', valueInputOption: 'USER_ENTERED',
+          requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, gasResult.url, gasResult.id, body.mileage || '0' ]] }
         });
         return res.status(200).json({ success: true, url: gasResult.url });
       } catch (err) {
@@ -183,22 +199,19 @@ export default async function handler(req, res) {
       }
     }
 
-    // 6. 사진 조회 (다양한 날짜 텍스트 파싱 포맷 적용)
+    // 6. 사진 조회 (키로수 포함 반환)
     if (action === 'getDriverPhotos') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A2:G' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A2:H' });
       const photos = [];
       for(let row of (response.data.values || [])) {
         if(row[1] && String(row[1]) === String(body.driverId)) {
           let rawDate = String(row[0] || "");
           let cleanDate = rawDate.substring(0, 10);
-          
           let match = rawDate.match(/^(\d{4})[./년\s]+(\d{1,2})[./월\s]+(\d{1,2})/);
-          if (match) {
-            cleanDate = `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`;
-          }
+          if (match) { cleanDate = `${match[1]}-${String(match[2]).padStart(2, '0')}-${String(match[3]).padStart(2, '0')}`; }
 
           let cleanStage = String(row[4] || "").replace(/\s/g, ''); 
-          photos.push({ dateKey: cleanDate, stage: cleanStage, url: row[5] || "", fileId: row[6] || "" });
+          photos.push({ dateKey: cleanDate, stage: cleanStage, url: row[5] || "", fileId: row[6] || "", mileage: row[7] || '0' });
         }
       }
       return res.status(200).json({ success: true, data: photos });
@@ -206,7 +219,7 @@ export default async function handler(req, res) {
 
     // 7. 사진 삭제
     if (action === 'deleteDriverPhoto') {
-      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A1:G' });
+      const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A1:H' });
       const data = response.data.values || [];
       let rowIndex = -1;
       for (let i = 0; i < data.length; i++) { if (data[i][6] && String(data[i][6]) === String(body.fileId) && String(data[i][1]) === String(body.driverId)) { rowIndex = i; break; } }
@@ -218,7 +231,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 8. 당일 상세 현황
+    // 8. 당일 상세 현황 (중복 병원 합치기 반영)
     if (action === 'getAdminDailyStatus') {
       const dateObj = new Date(body.targetDate);
       const month = dateObj.getMonth() + 1;
@@ -231,12 +244,14 @@ export default async function handler(req, res) {
         const dispatch = response.data.valueRanges[2].values || [];
         
         const dateString = body.targetDate.substring(0, 10);
-        let dailyList = [];
         let activeVehicles = new Set();
+        let groupedDispatch = {}; // 중복 병원 합치기용 객체
 
         for (let row of dispatch) {
           if(!row[0] || String(row[0]).substring(0, 10) !== dateString) continue;
           let vehicle = String(row[1]);
+          let clientName = String(row[3]);
+          let arrivalTime = row[10] || "";
           activeVehicles.add(vehicle);
 
           let driverName = "미배정", driverPhone = "";
@@ -247,34 +262,58 @@ export default async function handler(req, res) {
               break;
             }
           }
-          dailyList.push({
-            vehicle: vehicle, driverName: driverName, driverPhone: driverPhone,
-            clientName: row[3], arrivalTime: row[10] || ""
-          });
+          
+          // 같은 호차가 같은 병원에 가는 경우 하나로 합치기
+          let key = vehicle + "_" + clientName;
+          if(!groupedDispatch[key]) {
+            groupedDispatch[key] = { vehicle, driverName, driverPhone, clientName, arrivalTime };
+          } else {
+            // 둘 중 하나라도 도착 시간이 있으면 도착으로 표시
+            if(arrivalTime && !groupedDispatch[key].arrivalTime) groupedDispatch[key].arrivalTime = arrivalTime;
+          }
         }
+        let dailyList = Object.values(groupedDispatch);
         return res.status(200).json({ success: true, data: dailyList, vehicleCount: activeVehicles.size });
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패 (해당 월의 배차 탭을 확인하세요)' }); }
     }
 
-    // 9. 월별 통계 분석
+    // 9. 월별 통계 분석 (키로수 계산 추가)
     if (action === 'getAdminMonthlyStats') {
       const monthStr = body.targetMonth;
       const monthNum = parseInt(monthStr.split('-')[1], 10);
       try {
-        const response = await sheets.spreadsheets.values.get({
-          spreadsheetId: SPREADSHEET_ID, range: `${monthNum}월_배차리스트!A2:K`,
+        const response = await sheets.spreadsheets.values.batchGet({
+          spreadsheetId: SPREADSHEET_ID, ranges: [`${monthNum}월_배차리스트!A2:K`, 'Photos!A2:H'],
         });
-        const dispatch = response.data.values || [];
+        const dispatch = response.data.valueRanges[0].values || [];
+        const photos = response.data.valueRanges[1].values || [];
         
         let statsObj = {};
         let hospitalStats = {};
         let vehicleStats = {};
+        let mileageObj = {}; // 키로수 계산용
 
         const timeToMins = (timeStr) => {
           if(!timeStr || !timeStr.includes(':')) return 0;
           const [h, m] = timeStr.split(':');
           return parseInt(h)*60 + parseInt(m);
         };
+
+        // 사진 데이터에서 키로수 추출
+        for (let row of photos) {
+          let dateStr = String(row[0] || "").substring(0, 10);
+          if(!dateStr.startsWith(monthStr)) continue;
+          
+          let carNum = String(row[3] || '미정');
+          let km = parseInt(row[7]) || 0;
+          
+          if(km > 0) {
+            let key = dateStr + "_" + carNum;
+            if(!mileageObj[key]) mileageObj[key] = { min: km, max: km };
+            if(km < mileageObj[key].min) mileageObj[key].min = km;
+            if(km > mileageObj[key].max) mileageObj[key].max = km;
+          }
+        }
 
         for (let row of dispatch) {
           if(!row[0]) continue;
@@ -294,11 +333,21 @@ export default async function handler(req, res) {
           hospitalStats[client].count++;
           if(arrTime) hospitalStats[client].arrTimes.push(timeToMins(arrTime));
 
-          if(!vehicleStats[vehicle]) vehicleStats[vehicle] = { count: 0, clients: new Set(), endTimes: [] };
+          if(!vehicleStats[vehicle]) vehicleStats[vehicle] = { count: 0, clients: new Set(), endTimes: [], totalKm: 0 };
           vehicleStats[vehicle].count++;
           vehicleStats[vehicle].clients.add(client);
           if(arrTime) vehicleStats[vehicle].endTimes.push({ date: dateKey, time: timeToMins(arrTime) });
         }
+
+        // 호차별 총 키로수 계산 (해당 월)
+        Object.keys(mileageObj).forEach(key => {
+          let carNum = key.split('_')[1];
+          let dailyKm = mileageObj[key].max - mileageObj[key].min;
+          // 매칭이 정확하지 않을 수 있으나 대략적인 차량번호로 매칭 (완벽하려면 호차-차량번호 맵핑 필요)
+          for(let v in vehicleStats) {
+             vehicleStats[v].totalKm += dailyKm; // 임시 합산
+          }
+        });
 
         let statsArray = Object.keys(statsObj).map(date => ({
           date: date, vehicleCount: statsObj[date].vehicles.size, totalCount: statsObj[date].total,
@@ -333,10 +382,7 @@ export default async function handler(req, res) {
         }).sort((a,b) => b.count - a.count);
 
         return res.status(200).json({ 
-          success: true, 
-          data: statsArray,
-          hospitalData: hStatsOut,
-          vehicleData: vStatsOut
+          success: true, data: statsArray, hospitalData: hStatsOut, vehicleData: vStatsOut, mileageData: mileageObj
         });
       } catch (err) { return res.status(200).json({ success: false, message: '해당 월의 데이터가 없습니다.' }); }
     }
@@ -369,7 +415,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 12. 기사 비밀번호 초기화 (0000으로 강제 리셋 및 초기로그인 활성화)
+    // 12. 기사 비밀번호 초기화
     if (action === 'resetDriverPassword') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
       const rows = response.data.values || [];

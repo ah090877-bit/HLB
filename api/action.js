@@ -9,6 +9,7 @@ function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
+// 날짜를 기반으로 '26.07' 형태의 시트 접두사를 만들어주는 함수
 function formatYYMM(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -27,15 +28,40 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
+    // 🌟 [핵심 수정] 인증키 설정 오류의 진짜 원인을 반환하는 무적의 파싱 로직
     let credentials;
-    try {
-      let rawCreds = process.env.GOOGLE_CREDENTIALS || '{}';
-      rawCreds = rawCreds.replace(/\n/g, '\\n').replace(/\r/g, ''); 
-      credentials = JSON.parse(rawCreds); 
-      if (credentials.private_key) { credentials.private_key = credentials.private_key.replace(/\\n/g, '\n'); }
-    } catch (parseErr) { return res.status(200).json({ success: false, message: '인증키 설정 오류' }); }
+    const envCreds = process.env.GOOGLE_CREDENTIALS;
+    
+    if (!envCreds) {
+      return res.status(200).json({ success: false, message: '구글 인증키 누락: Vercel Environment Variables에 GOOGLE_CREDENTIALS 설정이 없습니다.' });
+    }
 
-    const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
+    try {
+      // 1차 시도: 공백 제거 후 순정 JSON 파싱
+      credentials = JSON.parse(envCreds.trim());
+    } catch (jsonErr) {
+      try {
+        // 2차 시도: 깨진 제어 문자나 실제 줄바꿈 기호를 문자열로 강제 보정 후 파싱
+        let fixedCreds = envCreds.replace(/\n/g, '\\n').replace(/\r/g, '');
+        credentials = JSON.parse(fixedCreds);
+      } catch (retryErr) {
+        // 3차 시도 실패 시: 구글이 뱉은 문법 에러의 위치(position)와 상세 원인을 그대로 노출합니다.
+        return res.status(200).json({ 
+          success: false, 
+          message: `구글 인증키 JSON 규격 오류: ${retryErr.message}. Vercel에 환경변수 값을 세팅할 때 공백이나 기호가 꼬였는지 확인해 주세요.` 
+        });
+      }
+    }
+
+    if (credentials && credentials.private_key) {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+    }
+
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
     const sheets = google.sheets({ version: 'v4', auth });
     
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
@@ -69,7 +95,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사 배차 조회
+    // 3. 기사 배차 조회 (동일 거래처 복수 발주 내역 병합 연산)
     if (action === 'getDriverDispatch') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -110,7 +136,7 @@ export default async function handler(req, res) {
           }
         }
         return res.status(200).json({ success: true, vehicle: assignedVehicle, data: Object.values(grouped) });
-      } catch (err) { return res.status(200).json({ success: false, message: `${prefix}_배차리스트 데이터가 없습니다.` }); }
+      } catch (err) { return res.status(200).json({ success: false, message: `${prefix}_배차리스트 데이터 조회에 실패했습니다.` }); }
     }
 
     // 4. 도착 시간 기록
@@ -146,13 +172,12 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '기록 중 오류 발생' }); }
     }
 
-    // 5. 사진 업로드 및 운행거리 동기화 로직 (한 줄 병합 및 '0' 날림 방지)
+    // 5. 사진 업로드 및 일별 주행거리 정산 (기사명 기준 병합 및 연락처 0 보존)
     if (action === 'uploadDashboardPhoto') {
       try {
         const dateString = body.customDate.substring(0, 10);
         const stageClean = body.stage.replace(/\s/g, '');
         
-        // 중복 방지 (완벽 작동)
         const pRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:G' });
         for(let r of (pRes.data.values || [])) {
           if(r[0] && String(r[0]).substring(0,10) === dateString && String(r[1]) === String(body.driverId) && String(r[4]).replace(/\s/g,'') === stageClean) {
@@ -189,17 +214,15 @@ export default async function handler(req, res) {
           requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, gasResult.url, gasResult.id, body.mileage || '0' ]] }
         });
 
-        // 🌟 운행거리 시트 누적 (기사명 기준으로 한 줄에 입력 & 전화번호 '0' 보존)
         if (body.mileage) {
           const prefix = formatYYMM(body.customDate);
-          const cleanPhone = originPhone.replace(/[-']/g, ''); // 숫자만
+          const cleanPhone = originPhone.replace(/[-']/g, '');
           
           try {
             const mRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A2:H` });
             const mRows = mRes.data.values || [];
             let targetRowIndex = -1;
             
-            // 전화번호 대신 기사명(driverName)과 날짜로 매칭하여 완벽하게 한 줄을 찾음
             for (let i = 0; i < mRows.length; i++) {
               if (String(mRows[i][0]).substring(0,10) === dateString && String(mRows[i][1]) === driverName) { 
                 targetRowIndex = i + 2; 
@@ -213,13 +236,11 @@ export default async function handler(req, res) {
             else if (stageClean.includes('센터복귀')) colLetter = 'F';
             else if (stageClean.includes('자택도착')) colLetter = 'G';
 
-            // 행이 존재하면 해당 칸만 업데이트
             if (targetRowIndex !== -1 && colLetter) {
               await sheets.spreadsheets.values.update({
                 spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!${colLetter}${targetRowIndex}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[body.mileage]] }
               });
               
-              // 뺄셈 연산 (어떤 칸이든 업데이트 될 때마다 D열(출발)과 G열(도착)이 둘 다 있다면 최종거리 연산)
               const uRowRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A${targetRowIndex}:G${targetRowIndex}` });
               const rowData = uRowRes.data.values[0] || [];
               const startKm = colLetter === 'D' ? parseInt(body.mileage) : parseInt(rowData[3]) || 0;
@@ -231,14 +252,12 @@ export default async function handler(req, res) {
                 });
               }
             } 
-            // 오늘 처음 입력하는 경우 새로 한 줄 만들기
             else if (targetRowIndex === -1) {
-              // 🌟 전화번호 앞에 아포스트로피(')를 붙여 시트에서 앞의 0이 지워지는 것 방지
               const newRow = [dateString, driverName, `'${cleanPhone}`, '', '', '', '', '0'];
               if(colLetter==='D') newRow[3] = body.mileage; else if(colLetter==='E') newRow[4] = body.mileage; else if(colLetter==='F') newRow[5] = body.mileage; else if(colLetter==='G') newRow[6] = body.mileage;
               await sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A:H`, valueInputOption: 'USER_ENTERED', requestBody: { values: [newRow] } });
             }
-          } catch(se) { console.log(se); } // 시트가 없으면 무시
+          } catch(se) {}
         }
         return res.status(200).json({ success: true, url: gasResult.url });
       } catch (err) { return res.status(200).json({ success: false, message: `서버 전송 오류: ${err.message}` }); }
@@ -260,7 +279,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data: photos });
     }
 
-    // 7. 사진 삭제 (드라이브 파일 연동 삭제)
+    // 7. 사진 삭제
     if (action === 'deleteDriverPhoto') {
       try {
         await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) });
@@ -278,7 +297,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 8. 당일 모니터링
+    // 8. 당일 모니터링 현황 (중복 정제 기능 내장)
     if (action === 'getAdminDailyStatus') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -320,7 +339,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패' }); }
     }
 
-    // 9. 월별 통계 분석
+    // 9. 월별 통계 분석 (기사별 누적 운행거리 지표 연출)
     if (action === 'getAdminMonthlyStats') {
       const prefix = formatYYMM(body.targetMonth);
       let dispatch = [], users = [], assign = [], mileageRows = [];
@@ -383,7 +402,7 @@ export default async function handler(req, res) {
 
       let statsArray = Object.keys(statsObj).map(d => ({
         date: d, vehicleCount: statsObj[d].vehicles.size, totalCount: statsObj[d].total,
-        doneCount: statsObj[d].done, missingCount: statsObj[d].total - statsObj[d].done
+        doneCount: statsObj[d].done, missingCount: statsObj[d].total - statsObj[dateKey].done
       })).sort((a, b) => a.date.localeCompare(b.date));
 
       let dStatsOut = [];
@@ -412,7 +431,7 @@ export default async function handler(req, res) {
       for (let row of (response.data.values || [])) {
         if (row[0] === 'driver') drivers.push({ name: row[1], id: String(row[2]), phone: row[3], carNumber: row[5] || '미등록' });
       }
-      return res.status(200).json({ success: true, data: drivers });
+      return res.status(200).json({ true, data: drivers });
     }
 
     // 11. 신규 기사 등록

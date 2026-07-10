@@ -9,7 +9,7 @@ function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-// 날짜를 기반으로 '26.07' 형태의 시트 접두사를 만들어주는 함수
+// 🌟 시트 이름 동적 생성 포맷 함수 (26.07 형태로 변환)
 function formatYYMM(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -28,44 +28,21 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // 🌟 [핵심 수정] 인증키 설정 오류의 진짜 원인을 반환하는 무적의 파싱 로직
-    let credentials;
-    const envCreds = process.env.GOOGLE_CREDENTIALS;
-    
-    if (!envCreds) {
-      return res.status(200).json({ success: false, message: '구글 인증키 누락: Vercel Environment Variables에 GOOGLE_CREDENTIALS 설정이 없습니다.' });
-    }
-
-    try {
-      // 1차 시도: 공백 제거 후 순정 JSON 파싱
-      credentials = JSON.parse(envCreds.trim());
-    } catch (jsonErr) {
-      try {
-        // 2차 시도: 깨진 제어 문자나 실제 줄바꿈 기호를 문자열로 강제 보정 후 파싱
-        let fixedCreds = envCreds.replace(/\n/g, '\\n').replace(/\r/g, '');
-        credentials = JSON.parse(fixedCreds);
-      } catch (retryErr) {
-        // 3차 시도 실패 시: 구글이 뱉은 문법 에러의 위치(position)와 상세 원인을 그대로 노출합니다.
-        return res.status(200).json({ 
-          success: false, 
-          message: `구글 인증키 JSON 규격 오류: ${retryErr.message}. Vercel에 환경변수 값을 세팅할 때 공백이나 기호가 꼬였는지 확인해 주세요.` 
-        });
-      }
-    }
-
-    if (credentials && credentials.private_key) {
-      credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
-    }
-
+    // 🌟 오류를 일으켰던 제 코드를 모두 삭제하고, 선생님의 가장 완벽했던 원본 코드로 100% 복구했습니다.
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS);
     const auth = new google.auth.GoogleAuth({
       credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
+    const drive = google.drive({ version: 'v3', auth });
+    // -------------------------------------------------------------------------
     
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
+    
+    // 구글 앱스 스크립트(GAS) 웹앱 URL
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyppHv-1YCsvplSP7TOoS5q0djhye9-1oBFx-jJDZM0B9vZi2wI6s7GRpPK_d_E0g-Z/exec";
 
     // 1. 로그인
@@ -95,7 +72,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사 배차 조회 (동일 거래처 복수 발주 내역 병합 연산)
+    // 3. 기사 배차 조회 (동일 병원 품목 합치기 적용)
     if (action === 'getDriverDispatch') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -172,7 +149,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '기록 중 오류 발생' }); }
     }
 
-    // 5. 사진 업로드 및 일별 주행거리 정산 (기사명 기준 병합 및 연락처 0 보존)
+    // 5. 사진 업로드 및 일별 주행거리 정산 
     if (action === 'uploadDashboardPhoto') {
       try {
         const dateString = body.customDate.substring(0, 10);
@@ -207,7 +184,7 @@ export default async function handler(req, res) {
           method: 'POST', body: JSON.stringify({ folderId: FOLDER_ID, fileName: newFileName, base64Data: body.base64Data, yearStr, monthStr, dayStr })
         });
         const gasResult = await gasResponse.json();
-        if (!gasResult.success) throw new Error("GAS 파일 생성 실패");
+        if (!gasResult.success) throw new Error("GAS 업로드 실패");
 
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: 'Photos!A:H', valueInputOption: 'USER_ENTERED',
@@ -216,7 +193,7 @@ export default async function handler(req, res) {
 
         if (body.mileage) {
           const prefix = formatYYMM(body.customDate);
-          const cleanPhone = originPhone.replace(/[-']/g, '');
+          const cleanPhone = originPhone.replace(/[-']/g, ''); 
           
           try {
             const mRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A2:H` });
@@ -257,7 +234,7 @@ export default async function handler(req, res) {
               if(colLetter==='D') newRow[3] = body.mileage; else if(colLetter==='E') newRow[4] = body.mileage; else if(colLetter==='F') newRow[5] = body.mileage; else if(colLetter==='G') newRow[6] = body.mileage;
               await sheets.spreadsheets.values.append({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A:H`, valueInputOption: 'USER_ENTERED', requestBody: { values: [newRow] } });
             }
-          } catch(se) {}
+          } catch(se) { console.log(se); } 
         }
         return res.status(200).json({ success: true, url: gasResult.url });
       } catch (err) { return res.status(200).json({ success: false, message: `서버 전송 오류: ${err.message}` }); }
@@ -279,7 +256,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data: photos });
     }
 
-    // 7. 사진 삭제
+    // 7. 사진 삭제 (드라이브 연동)
     if (action === 'deleteDriverPhoto') {
       try {
         await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) });
@@ -297,7 +274,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 8. 당일 모니터링 현황 (중복 정제 기능 내장)
+    // 8. 당일 모니터링
     if (action === 'getAdminDailyStatus') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -339,7 +316,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패' }); }
     }
 
-    // 9. 월별 통계 분석 (기사별 누적 운행거리 지표 연출)
+    // 9. 월별 통계 분석
     if (action === 'getAdminMonthlyStats') {
       const prefix = formatYYMM(body.targetMonth);
       let dispatch = [], users = [], assign = [], mileageRows = [];
@@ -402,7 +379,7 @@ export default async function handler(req, res) {
 
       let statsArray = Object.keys(statsObj).map(d => ({
         date: d, vehicleCount: statsObj[d].vehicles.size, totalCount: statsObj[d].total,
-        doneCount: statsObj[d].done, missingCount: statsObj[d].total - statsObj[dateKey].done
+        doneCount: statsObj[d].done, missingCount: statsObj[d].total - statsObj[d].done
       })).sort((a, b) => a.date.localeCompare(b.date));
 
       let dStatsOut = [];
@@ -431,7 +408,7 @@ export default async function handler(req, res) {
       for (let row of (response.data.values || [])) {
         if (row[0] === 'driver') drivers.push({ name: row[1], id: String(row[2]), phone: row[3], carNumber: row[5] || '미등록' });
       }
-      return res.status(200).json({ true, data: drivers });
+      return res.status(200).json({ success: true, data: drivers });
     }
 
     // 11. 신규 기사 등록

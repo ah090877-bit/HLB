@@ -32,7 +32,6 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* 기사 배차 레이아웃 (도착버튼 외부배치) */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #1a73e8; padding:14px;}
     .card-meta-item { font-size: 0.85rem; margin-bottom: 5px; color:#475569; line-height:1.4;}
     .btn-arrival { background-color: #1a73e8; color: white; padding: 8px 12px; border-radius: 6px; border:none; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
@@ -160,7 +159,7 @@
       <div id="pane_history" class="tab-content">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <h3 style="margin: 0; font-size: 1rem;">월별 증빙판</h3>
-          <input type="month" id="filterMonth" style="margin:0; width: 120px; font-size:0.8rem;" onchange="renderPhotoGrid()">
+          <input type="month" id="filterMonth" style="margin:0; width: 120px; font-size:0.8rem;" onchange="loadDriverPhotos()">
         </div>
         <table style="table-layout: fixed;">
           <thead>
@@ -406,18 +405,18 @@
             document.getElementById('vehicleDisplay').innerText = `[당일배정: ${res.vehicle}]`;
             let html = '';
             res.data.forEach(item => {
-              // 🌟 순번(orderSeq)이 여러 개일 수 있으므로 ID에서 특수문자 완벽 제거
-              let cleanId = item.orderSeq.replace(/,/g, '').replace(/\s/g, '');
+              // 특수문자 제거 후 아코디언 고유 ID 생성
+              let cleanId = String(item.orderSeq).replace(/,/g, '').replace(/\s/g, '');
               let btn = item.arrivalTime ? `<span class="arrival-done">도착 ${item.arrivalTime}</span>` : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
               
-              // 🌟 버튼 외부 분리 및 직관적인 순번 UI
               html += `
               <div class="dispatch-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                   <div style="flex:1; cursor:pointer;" onclick="toggleAccordion('acco_${cleanId}')">
-                    <h4 style="margin:0; font-size:1.05rem; color:#1e293b;">
-                      <span style="color:#1a73e8; font-size:0.9rem; margin-right:3px;">[순번: ${item.orderSeq}]</span> ${item.clientName}
-                      <span style="font-size:0.75rem; color:#94a3b8; margin-left:4px;">상세정보 ▼</span>
+                    <h4 style="margin:0; font-size:1.05rem; color:#1e293b; display:flex; align-items:center;">
+                      <span style="color:#1a73e8; font-size:0.9rem; margin-right:5px;">[순번: ${item.orderSeq}]</span>
+                      <span style="word-break:keep-all;">${item.clientName}</span>
+                      <span style="font-size:0.75rem; color:#94a3b8; margin-left:6px; white-space:nowrap;">상세정보 ▼</span>
                     </h4>
                   </div>
                   <div style="margin-left:10px;">${btn}</div>
@@ -476,34 +475,34 @@
       reader.readAsDataURL(fileInput.files[0]);
     }
 
+    // 🌟 프론트엔드: 월별 내역 조회 시 달력의 targetMonth 전달
     function loadDriverPhotos() {
-      callGasApi('getDriverPhotos', { driverId: localStorage.getItem('currentUser') }).then(res => {
+      const targetMonth = document.getElementById('filterMonth').value;
+      callGasApi('getDriverPhotos', { driverId: localStorage.getItem('currentUser'), targetMonth: targetMonth }).then(res => {
         if(res.success) { globalPhotosArray = res.data; renderPhotoGrid(); }
       });
     }
 
     function renderPhotoGrid() {
-      const month = document.getElementById('filterMonth').value;
       const tbody = document.getElementById('gridTableBody');
       tbody.innerHTML = '';
       let grid = {};
       globalPhotosArray.forEach(p => {
-        if(p.dateKey.startsWith(month)) {
-          if(!grid[p.dateKey]) grid[p.dateKey] = {};
-          let cleanStage = (p.stage || "").replace(/\s/g, ''); 
-          grid[p.dateKey][cleanStage] = p;
-        }
+        if(!grid[p.dateKey]) grid[p.dateKey] = {};
+        grid[p.dateKey][p.stage] = p;
       });
+      
       Object.keys(grid).sort().reverse().forEach(date => {
         let tr = `<tr><td style="font-size:0.75rem;">${date.substring(5)}</td>`;
         ['1.자택출발','2.센터입차','3.센터복귀','4.자택도착'].forEach(s => {
           if(grid[date][s]) {
             let kmText = grid[date][s].mileage > 0 ? `<div style="font-weight:bold; font-size:0.8rem; margin-bottom:4px; color:#333;">${grid[date][s].mileage}km</div>` : '';
+            // 🌟 삭제 시 dateKey(년월 추출용) 함께 전송
             tr += `<td style="vertical-align:middle;">
                      ${kmText}
                      <div>
                        <a href="${grid[date][s].url}" target="_blank" style="color:#1a73e8; font-weight:bold; font-size:0.8rem; text-decoration:none; margin-right:5px;">확인</a>
-                       <span style="color:#dc2626; cursor:pointer; font-weight:bold; font-size:0.8rem;" onclick="deleteP('${grid[date][s].fileId}')">삭제</span>
+                       <span style="color:#dc2626; cursor:pointer; font-weight:bold; font-size:0.8rem;" onclick="deleteP('${grid[date][s].fileId}', '${date}')">삭제</span>
                      </div>
                    </td>`;
           }
@@ -513,9 +512,9 @@
       });
     }
 
-    function deleteP(fileId) {
+    function deleteP(fileId, dateKey) {
       showCustomAlert('해당 내역을 완전히 삭제하시겠습니까?\n(드라이브 원본 파일도 함께 삭제됩니다.)', () => {
-        callGasApi('deleteDriverPhoto', { fileId, driverId: localStorage.getItem('currentUser') }).then(res => {
+        callGasApi('deleteDriverPhoto', { fileId: fileId, dateKey: dateKey, driverId: localStorage.getItem('currentUser') }).then(res => {
           if(res.success) loadDriverPhotos();
         });
       });

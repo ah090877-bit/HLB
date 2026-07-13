@@ -419,7 +419,7 @@
               
               let btn = item.arrivalTime 
                 ? `<div class="arrival-done">✓ 도착 ${item.arrivalTime}</div>` 
-                : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">📍 거래처 도착</button>`;
+                : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
               
               // 🌟 요청하신 완벽한 디자인의 카드 레이아웃 구현 (뱃지 + 거래처 + 버튼)
               html += `
@@ -462,7 +462,7 @@
       const stage = document.getElementById('photoStage').value;
       const mileage = document.getElementById('mileageInput').value;
       if(!stage || !fileInput.files[0]) return showCustomAlert('단계와 사진을 선택하세요.');
-      showCustomAlert('초고속 서버로 전송 중입니다...\n(네트워크에 따라 수 초 소요)');
+      showCustomAlert('서버로 전송 중입니다...\n(네트워크에 따라 수 초 소요)');
       
       const reader = new FileReader();
       reader.onload = e => {

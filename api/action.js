@@ -9,7 +9,6 @@ function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-// "26.07" 형태로 변환하는 유틸리티
 function formatYYMM(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -28,10 +27,9 @@ export default async function handler(req, res) {
     const body = req.body;
     const action = body.action;
     
-    // 무적의 인증키 파싱
     let credentials;
     const envCreds = process.env.GOOGLE_CREDENTIALS;
-    if (!envCreds) return res.status(200).json({ success: false, message: '구글 인증키 설정 오류' });
+    if (!envCreds) return res.status(200).json({ success: false, message: '구글 인증키 누락' });
     try { credentials = JSON.parse(envCreds.trim()); } 
     catch (e1) {
       try { credentials = JSON.parse(envCreds.replace(/\n/g, '\\n').replace(/\r/g, '')); } 
@@ -73,7 +71,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사 배차 조회 (🌟 신규 열 순서 및 중복 제품 통합/순번 정리 반영)
+    // 3. 기사 배차 조회
     if (action === 'getDriverDispatch') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -96,11 +94,11 @@ export default async function handler(req, res) {
 
         let grouped = {};
         for (let row of dispatchData) {
-          if(!row[6]) continue; // 배송일 (6)
-          if (String(row[6]).substring(0, 10) === dateString && String(row[5]) === assignedVehicle) { // 호차 (5)
-            let clientName = String(row[3]); // 거래처명 (3)
-            let orderSeq = String(row[9]);   // 순번 (9)
-            let prodStr = `${row[2]}(${row[1]}개)`; // 제품명(2), 수량(1)
+          if(!row[6]) continue;
+          if (String(row[6]).substring(0, 10) === dateString && String(row[5]) === assignedVehicle) {
+            let clientName = String(row[3]);
+            let orderSeq = String(row[9]);
+            let prodStr = `${row[2]}(${row[1]}개)`;
             
             if (!grouped[clientName]) {
               grouped[clientName] = {
@@ -108,12 +106,8 @@ export default async function handler(req, res) {
                 prodName: prodStr, qty: Number(row[1]), remarks: row[8] || '', arrivalTime: row[10] ? String(row[10]).substring(0,5) : ""
               };
             } else {
-              // 🌟 순번(5, 5) 중복 방지
               let seqArray = grouped[clientName].orderSeq.split(',').map(s=>s.trim());
-              if (!seqArray.includes(orderSeq) && orderSeq !== "undefined" && orderSeq !== "") {
-                grouped[clientName].orderSeq += `, ${orderSeq}`;
-              }
-              // 🌟 제품명(개수), 제품명(개수) 이쁘게 결합
+              if (!seqArray.includes(orderSeq) && orderSeq !== "undefined" && orderSeq !== "") { grouped[clientName].orderSeq += `, ${orderSeq}`; }
               grouped[clientName].prodName += `, ${prodStr}`;
               grouped[clientName].qty += Number(row[1]);
               if (row[10]) grouped[clientName].arrivalTime = String(row[10]).substring(0,5);
@@ -122,13 +116,11 @@ export default async function handler(req, res) {
         }
         
         let dispatchList = Object.values(grouped);
-        // 🌟 순번(오름차순) 정렬 보장
         dispatchList.sort((a, b) => {
             let seqA = parseInt(String(a.orderSeq).split(',')[0]) || 999;
             let seqB = parseInt(String(b.orderSeq).split(',')[0]) || 999;
             return seqA - seqB;
         });
-
         return res.status(200).json({ success: true, vehicle: assignedVehicle, data: dispatchList });
       } catch (err) { return res.status(200).json({ success: false, message: `${prefix}_배차리스트 데이터 조회에 실패했습니다.` }); }
     }
@@ -166,21 +158,21 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '기록 중 오류 발생' }); }
     }
 
-    // 5. 사진 업로드 (🌟 월별 Photos 시트 동적 반영)
+    // 5. 사진 업로드
     if (action === 'uploadDashboardPhoto') {
       try {
         const dateString = body.customDate.substring(0, 10);
-        const prefix = formatYYMM(body.customDate); // 예: 26.07
         const stageClean = body.stage.replace(/\s/g, '');
-        
+        const prefix = formatYYMM(body.customDate); 
+
         try {
           const pRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_Photos!A:G` });
           for(let r of (pRes.data.values || [])) {
             if(r[0] && String(r[0]).substring(0,10) === dateString && String(r[1]) === String(body.driverId) && String(r[4]).replace(/\s/g,'') === stageClean) {
-              return res.status(200).json({ success: false, message: '이미 해당 단계의 사진이 등록되어 있습니다.\n기존 내역을 삭제 후 다시 시도해주세요.' });
+              return res.status(200).json({ success: false, message: '이미 해당 단계의 사진이 등록되어 있습니다.' });
             }
           }
-        } catch(e) {} // 시트가 없으면 패스
+        } catch(e) {}
 
         const usersRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
         let driverName = '', carNum = '', originPhone = '';
@@ -206,7 +198,6 @@ export default async function handler(req, res) {
         const gasResult = await gasResponse.json();
         if (!gasResult.success) throw new Error("GAS 파일 생성 실패");
 
-        // 🌟 월별 Photos 시트에 추가
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: `${prefix}_Photos!A:H`, valueInputOption: 'USER_ENTERED',
           requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, gasResult.url, gasResult.id, body.mileage || '0' ]] }
@@ -239,7 +230,6 @@ export default async function handler(req, res) {
               const rowData = uRowRes.data.values[0] || [];
               const startKm = colLetter === 'D' ? parseInt(body.mileage) : parseInt(rowData[3]) || 0;
               const endKm = colLetter === 'G' ? parseInt(body.mileage) : parseInt(rowData[6]) || 0;
-              
               if (startKm > 0 && endKm > 0 && endKm >= startKm) {
                 await sheets.spreadsheets.values.update({
                   spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!H${targetRowIndex}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[endKm - startKm]] }
@@ -256,9 +246,9 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: `서버 전송 오류: ${err.message}` }); }
     }
 
-    // 6. 사진 조회 (🌟 월별 Photos 시트 동적 조회)
+    // 6. 사진 조회
     if (action === 'getDriverPhotos') {
-      const prefix = formatYYMM(body.targetMonth); // 프론트에서 달력(filterMonth) 값을 넘겨줌
+      const prefix = formatYYMM(body.targetMonth); 
       try {
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_Photos!A2:H` });
         const photos = [];
@@ -272,23 +262,18 @@ export default async function handler(req, res) {
           }
         }
         return res.status(200).json({ success: true, data: photos });
-      } catch (e) {
-        return res.status(200).json({ success: true, data: [] }); // 시트가 없으면 빈 배열 반환
-      }
+      } catch (e) { return res.status(200).json({ success: true, data: [] }); }
     }
 
     // 7. 사진 삭제
     if (action === 'deleteDriverPhoto') {
-      try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) }); } 
-      catch (e) {}
-
-      const prefix = formatYYMM(body.dateKey); // 프론트에서 삭제할 날짜를 넘겨줌
+      try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) }); } catch (e) {}
+      const prefix = formatYYMM(body.dateKey); 
       try {
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_Photos!A1:G` });
         const data = response.data.values || [];
         let rowIndex = -1;
         for (let i = 0; i < data.length; i++) { if (data[i][6] && String(data[i][6]) === String(body.fileId) && String(data[i][1]) === String(body.driverId)) { rowIndex = i; break; } }
-        
         if (rowIndex !== -1) {
           const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
           const sheetId = sheetMeta.data.sheets.find(s => s.properties.title === `${prefix}_Photos`).properties.sheetId;
@@ -298,7 +283,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 8. 당일 모니터링 현황 (🌟 열 인덱스 수정 반영)
+    // 8. 당일 모니터링
     if (action === 'getAdminDailyStatus') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -328,22 +313,18 @@ export default async function handler(req, res) {
               break;
             }
           }
-          
           let combineKey = vehicle + "_" + clientName;
-          if(!groupedDispatch[combineKey]) {
-            groupedDispatch[combineKey] = { vehicle, driverName, driverPhone, clientName, arrivalTime };
-          } else {
-            if(arrivalTime && !groupedDispatch[combineKey].arrivalTime) groupedDispatch[combineKey].arrivalTime = arrivalTime;
-          }
+          if(!groupedDispatch[combineKey]) { groupedDispatch[combineKey] = { vehicle, driverName, driverPhone, clientName, arrivalTime }; } 
+          else { if(arrivalTime && !groupedDispatch[combineKey].arrivalTime) groupedDispatch[combineKey].arrivalTime = arrivalTime; }
         }
         return res.status(200).json({ success: true, data: Object.values(groupedDispatch), vehicleCount: activeVehicles.size });
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패' }); }
     }
 
-    // 9. 월별 통계 분석 (🌟 열 인덱스 및 Photos 시트 동적 반영)
+    // 9. 월별 통계 분석
     if (action === 'getAdminMonthlyStats') {
       const prefix = formatYYMM(body.targetMonth);
-      let dispatch = [], users = [], assign = [], photosRows = [], mileageRows = [];
+      let dispatch = [], users = [], assign = [], mileageRows = [];
       try {
         const resMain = await sheets.spreadsheets.values.batchGet({
           spreadsheetId: SPREADSHEET_ID, ranges: [`${prefix}_배차리스트!A2:K`, 'Users!A2:G', `${prefix}_호차배정!A2:D`],
@@ -354,8 +335,8 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: `${prefix}_배차 데이터가 없습니다.` }); }
 
       try {
-        const pRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A2:H` });
-        mileageRows = pRes.data.values || [];
+        const mRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A2:H` });
+        mileageRows = mRes.data.values || [];
       } catch(e) {} 
 
       let statsObj = {}, hospitalStats = {}, driverStats = {};
@@ -478,6 +459,72 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    // 🌟 14. [일지 출력용] 전용 API 데이터 송출 엔진 (박스 수 계산 및 양식 포맷팅)
+    if (action === 'getDailyReport') {
+      const prefix = formatYYMM(body.targetDate);
+      const dateString = body.targetDate.substring(0, 10);
+      try {
+        const response = await sheets.spreadsheets.values.batchGet({
+          spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${prefix}_호차배정!A2:D`, `${prefix}_배차리스트!A2:K`, `${prefix}_운행거리!A2:H`],
+        });
+        const users = response.data.valueRanges[0].values || [];
+        const assign = response.data.valueRanges[1].values || [];
+        const dispatch = response.data.valueRanges[2].values || [];
+        const mileage = response.data.valueRanges[3] ? response.data.valueRanges[3].values || [] : [];
+
+        let reportData = {};
+
+        for (let row of dispatch) {
+          if (!row[6] || String(row[6]).substring(0, 10) !== dateString) continue;
+          let vehicle = String(row[5]);
+          let clientName = String(row[3]).replace(/\s*\(\d+ea\)/gi, '').trim();
+          let orderSeq = parseInt(row[9]) || 999;
+          let arrTime = row[10] || "";
+          let remarks = row[8] || "";
+
+          if (!reportData[vehicle]) {
+            let driverName = "미배정";
+            for (let a of assign) {
+              if (String(a[0]).substring(0, 10) === dateString && String(a[1]) === vehicle) {
+                let aPhone = String(a[3]).replace(/[-']/g, '');
+                for (let u of users) { if (String(u[3]).replace(/[-']/g, '') === aPhone) { driverName = u[1]; break; } }
+                break;
+              }
+            }
+
+            let startKm = "", endKm = "";
+            for (let m of mileage) {
+              if (String(m[0]).substring(0, 10) === dateString && String(m[1]) === driverName) {
+                startKm = m[4] || m[3] || ""; 
+                endKm = m[5] || m[6] || ""; 
+                break;
+              }
+            }
+
+            reportData[vehicle] = { vehicle: vehicle, driverName: driverName, startKm: startKm, endKm: endKm, clientsMap: {} };
+          }
+
+          if (!reportData[vehicle].clientsMap[clientName]) {
+            reportData[vehicle].clientsMap[clientName] = { name: clientName, boxCount: 0, arrTime: arrTime, remarks: remarks, orderSeq: orderSeq };
+          } else {
+            if (orderSeq < reportData[vehicle].clientsMap[clientName].orderSeq) {
+              reportData[vehicle].clientsMap[clientName].orderSeq = orderSeq;
+            }
+            if (arrTime && !reportData[vehicle].clientsMap[clientName].arrTime) {
+               reportData[vehicle].clientsMap[clientName].arrTime = arrTime;
+            }
+          }
+          reportData[vehicle].clientsMap[clientName].boxCount++;
+        }
+
+        for (let v in reportData) {
+           reportData[v].clients = Object.values(reportData[v].clientsMap).sort((a,b) => a.orderSeq - b.orderSeq);
+        }
+
+        return res.status(200).json({ success: true, data: reportData });
+      } catch (err) { return res.status(200).json({ success: false, message: '일지 데이터를 불러올 수 없습니다. 해당 날짜의 배차리스트가 존재하는지 확인해 주세요.' }); }
     }
 
     return res.status(400).json({ success: false, message: '알 수 없는 요청입니다.' });

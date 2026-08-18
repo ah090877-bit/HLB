@@ -32,7 +32,6 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* 🌟 레이아웃 붕괴 방지용 CSS 추가 (min-width: 0; 및 word-break 조정) */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 12px; padding: 16px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; }
     .dispatch-header { display: flex; align-items: center; justify-content: space-between; width: 100%; }
     .seq-badge { width: 42px; height: 42px; border: 2px solid #1a73e8; color: #1a73e8; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 800; flex-shrink: 0; background: #fff; }
@@ -45,7 +44,6 @@
     .card-meta-item { font-size: 0.85rem; margin-bottom: 6px; color:#475569; line-height:1.4; }
     .btn-copy { background: #e2e8f0; border: none; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; color: #333; margin-left: 5px; font-weight: bold; }
 
-    /* 관리자 디자인 */
     .admin-welcome-box { border: 2px solid #1a73e8; background-color: #f0f7ff; padding: 12px 18px; border-radius: 8px; display: inline-block; text-align: left; }
     .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
@@ -192,9 +190,11 @@
       </div>
 
       <div class="tabs-nav">
-        <div class="tab-item active" id="adminTabBtn_dash" onclick="switchAdminTab('dash')">당일 운행 모니터링</div>
-        <div class="tab-item" id="adminTabBtn_analytics" onclick="switchAdminTab('analytics')">월별 통계 분석</div>
-        <div class="tab-item" id="adminTabBtn_manage" onclick="switchAdminTab('manage')">기사 계정 관리</div>
+        <div class="tab-item active" id="adminTabBtn_dash" onclick="switchAdminTab('dash')">모니터링</div>
+        <div class="tab-item" id="adminTabBtn_analytics" onclick="switchAdminTab('analytics')">월별통계</div>
+        <div class="tab-item" id="adminTabBtn_manage" onclick="switchAdminTab('manage')">계정관리</div>
+        <!-- 🌟 새롭게 추가된 일지 출력 탭 -->
+        <div class="tab-item" id="adminTabBtn_report" onclick="switchAdminTab('report')">일지출력</div>
       </div>
 
       <div id="adminPane_dash" class="tab-content active">
@@ -230,7 +230,7 @@
 
       <div id="adminPane_analytics" class="tab-content">
         <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-          <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 기사별 이력 및 주행거리 현황입니다.</p></div>
+          <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 기사별 이력을 확인합니다.</p></div>
           <input type="month" id="adminMonthStats" style="width:130px; margin:0;" onchange="loadAdminAnalytics()">
         </div>
 
@@ -279,6 +279,18 @@
           </table>
         </div>
       </div>
+
+      <!-- 🌟 새롭게 추가된 일지 출력 전용 탭 -->
+      <div id="adminPane_report" class="tab-content">
+        <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+          <div><h3 style="margin:0;">차량운행 및 배송업무일지 출력</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송일자를 선택하고 호차를 누르면 PDF 일지가 생성됩니다.</p></div>
+          <input type="date" id="reportDate" style="width:130px; margin:0;" onchange="loadReportList()">
+        </div>
+        <div id="reportListContainer" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+           <p style="grid-column: 1 / -1; text-align:center; color:#64748b;">먼저 날짜를 선택해 주세요.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -286,6 +298,7 @@
     const BACKEND_URL = '/api/action';
     let adminDailyData = []; 
     let globalPhotosArray = [];
+    let currentReportData = {}; // 🌟 일지 출력용 데이터 저장
     let selectedLoginRole = '';
     let compulsoryChangeId = ''; 
     
@@ -377,7 +390,9 @@
         switchMainView('adminView');
         document.getElementById('adminDate').value = new Date().toISOString().substring(0,10);
         document.getElementById('adminMonthStats').value = new Date().toISOString().substring(0,7);
+        document.getElementById('reportDate').value = new Date().toISOString().substring(0,10);
         loadAdminDashboard();
+        loadReportList();
       }
     }
 
@@ -415,8 +430,6 @@
             res.data.forEach(item => {
               let displaySeq = String(item.orderSeq).split(',')[0].trim(); 
               let cleanId = String(item.orderSeq).replace(/,/g, '').replace(/\s/g, '');
-              
-              // 🌟 거래처명에서 (숫자ea) 패턴 깔끔하게 지우기 적용 완료
               let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
               
               let btn = item.arrivalTime 
@@ -426,7 +439,6 @@
               let remarksColor = (item.remarks && item.remarks !== '-' && item.remarks.trim() !== '') ? '#ef4444' : '#64748b';
               let cleanPhoneNum = item.clientPhone.replace(/[^0-9]/g, '');
 
-              // 🌟 레이아웃 붕괴 방지용 min-width: 0 삽입 및 여백 조정
               html += `
               <div class="dispatch-card">
                 <div class="dispatch-header">
@@ -537,7 +549,7 @@
     }
 
     function switchAdminTab(tab) {
-      ['dash','analytics','manage'].forEach(t => {
+      ['dash','analytics','manage','report'].forEach(t => {
         document.getElementById('adminPane_'+t).classList.remove('active');
         document.getElementById('adminTabBtn_'+t).classList.remove('active');
       });
@@ -546,6 +558,7 @@
 
       if(tab === 'manage') loadAdminDriverList();
       if(tab === 'analytics') loadAdminAnalytics();
+      if(tab === 'report') loadReportList();
     }
 
     function loadAdminDashboard() {
@@ -571,7 +584,6 @@
 
       adminDailyData.forEach(item => {
         let match = false;
-        // 🌟 관리자 화면에서도 (숫자ea) 삭제 통일 적용
         let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
 
         if(!searchTxt) match = true;
@@ -622,7 +634,6 @@
           const hBody = document.getElementById('adminHospitalsBody');
           hBody.innerHTML = '';
           res.hospitalData.forEach(h => {
-             // 🌟 통계 화면에서도 깔끔하게 반영
              let displayHosp = h.hospital.replace(/\s*\(\d+ea\)/gi, '').trim();
              hBody.innerHTML += `<tr><td style="text-align:left;"><strong>${displayHosp}</strong></td><td>${h.count}건</td><td>${h.avgTime}</td></tr>`;
           });
@@ -734,6 +745,149 @@
           loadAdminDriverList(); 
         } else showCustomAlert(res.message);
       });
+    }
+
+    // 🌟 1. 일지 출력 데이터 로드 함수
+    function loadReportList() {
+      const targetDate = document.getElementById('reportDate').value;
+      if(!targetDate) return;
+      document.getElementById('reportListContainer').innerHTML = '<p style="grid-column: 1 / -1; text-align:center;">데이터를 분석 중입니다...</p>';
+      
+      callGasApi('getDailyReport', { targetDate: targetDate }).then(res => {
+        if(res.success) {
+          currentReportData = res.data;
+          let html = '';
+          const vehicles = Object.keys(res.data);
+          if (vehicles.length === 0) {
+            html = '<p style="grid-column: 1 / -1; text-align:center; color:#ef4444; font-weight:bold;">해당 날짜에 운행된 호차 데이터가 없습니다.</p>';
+          } else {
+            vehicles.sort().forEach(v => {
+              html += `<button class="btn-solid" style="background:#fff; color:#1a73e8; border:2px solid #1a73e8; font-size:1.1rem; font-weight:800; padding:15px; border-radius:10px;" onclick="printReport('${v}')">🖨️ ${v} 출력</button>`;
+            });
+          }
+          document.getElementById('reportListContainer').innerHTML = html;
+        } else {
+          document.getElementById('reportListContainer').innerHTML = `<p style="grid-column: 1 / -1; text-align:center; color:red; font-weight:bold;">${res.message}</p>`;
+        }
+      });
+    }
+
+    // 🌟 2. 팝업 창 생성 및 PDF 규격에 맞춘 렌더링 함수
+    function printReport(vehicleKey) {
+      const data = currentReportData[vehicleKey];
+      const targetDate = document.getElementById('reportDate').value;
+      
+      // 새 창 열기
+      const printWin = window.open('', '', 'width=900,height=1000');
+      
+      let html = `
+        <html>
+        <head>
+          <title>${vehicleKey}_업무일지</title>
+          <style>
+            @page { size: A4; margin: 10mm; }
+            body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 11px; margin: 0; padding: 0; color: #000; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; table-layout: fixed; }
+            th, td { border: 1px solid #000; padding: 4px; text-align: center; vertical-align: middle; height: 22px; word-break: break-all; }
+            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; }
+            .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px; }
+            h1 { text-align: center; font-size: 22px; margin: 0 0 15px 0; letter-spacing: 2px; font-weight: bold; }
+            .info-boxes { display: flex; gap: 20px; margin-bottom: 10px; align-items: flex-start; }
+            .info-box-left { flex: 1; }
+            .info-box-right { flex: 1.5; }
+            .sign-text { color: #ccc; font-size: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header-wrap">
+            <div style="font-size: 14px; font-weight: bold;">[${vehicleKey}]</div>
+            <div style="font-size: 15px; font-weight: bold; color:#e2402b;"><i><b>HLB</b> Therapeutics</i></div>
+          </div>
+          <h1>차량운행 및 배송업무일지</h1>
+          
+          <div class="info-boxes">
+            <div class="info-box-left">
+              <table>
+                <tr><th style="width:35%">배송일자</th><td style="text-align:left; padding-left:8px;">${targetDate}</td></tr>
+                <tr><th>센터</th><td style="text-align:left; padding-left:8px;">이천센터</td></tr>
+              </table>
+            </div>
+            <div class="info-box-right">
+              <table>
+                <tr><th style="width:25%">보관관리담당</th><th style="width:25%">출고관리담당</th><th style="width:25%">운송관리담당</th><th style="width:25%">배송기사</th></tr>
+                <tr>
+                  <td style="height:35px;"><span class="sign-text">성명/서명</span></td>
+                  <td><span class="sign-text">성명/서명</span></td>
+                  <td><span class="sign-text">성명/서명</span></td>
+                  <td style="font-weight:bold; font-size:12px;">${data.driverName}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <div class="info-boxes">
+            <div class="info-box-left">
+              <table>
+                <tr><th rowspan="3" style="width:35%">주행거리</th><th style="width:40%">물류창고 출발 시</th><td style="text-align:right; padding-right:8px;">${data.startKm} km</td></tr>
+                <tr><th>배송완료 시</th><td style="text-align:right; padding-right:8px;"> km</td></tr>
+                <tr><th>물류창고 도착 시</th><td style="text-align:right; padding-right:8px;">${data.endKm} km</td></tr>
+              </table>
+            </div>
+            <div class="info-box-right">
+              <table>
+                <tr>
+                  <th rowspan="2" style="width:20%">차량<br>안전점검</th>
+                  <th style="width:30%">물류창고 출발 전</th><td style="width:20%"></td>
+                  <th style="width:30%">배송안전교육</th>
+                </tr>
+                <tr>
+                  <th>물류창고 복귀 후</th><td></td>
+                  <td><span class="sign-text">성명/서명</span></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr><th style="width:5%">No</th><th style="width:50%">거 래 처 명</th><th style="width:10%">박스 수</th><th style="width:15%">도착시간</th><th style="width:20%">비고</th></tr>
+            </thead>
+            <tbody>
+      `;
+
+      // 🌟 요청하신 이미지처럼 31개의 고정된 표 생성 (빈칸 채우기 포함)
+      let totalBoxes = 0;
+      for (let i = 1; i <= 31; i++) {
+        let client = data.clients[i - 1];
+        if (client) {
+          totalBoxes += client.boxCount;
+          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:10px;">${client.name}</td><td>${client.boxCount}</td><td>${client.arrTime}</td><td>${client.remarks}</td></tr>`;
+        } else {
+          html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
+        }
+      }
+
+      html += `
+              <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact;">박스 총 개수</td><td style="font-weight:bold;">${totalBoxes}</td><td></td><td></td></tr>
+            </tbody>
+          </table>
+          
+          <div style="text-align:center; font-size:12px; margin-top:10px;">1</div>
+        </body>
+        </html>
+      `;
+
+      // 생성된 HTML을 새 창에 삽입 후 인쇄 다이얼로그 호출
+      printWin.document.write(html);
+      printWin.document.close();
+      printWin.focus();
+      
+      // 약간의 지연을 주어 CSS가 완벽히 로드된 후 인쇄 창 띄우기
+      setTimeout(() => {
+        printWin.print();
+        // 인쇄가 끝나면 창 닫기 (일부 브라우저에서는 사용자가 수동으로 닫아야 할 수도 있습니다)
+        // printWin.close(); 
+      }, 500);
     }
 
     window.onload = function() {

@@ -32,7 +32,7 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* 🌟 기사 배차 레이아웃 (비고란 고정 노출 및 우측 버튼 정렬) */
+    /* 기사 배차 레이아웃 */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 12px; padding: 16px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; }
     .dispatch-header { display: flex; align-items: center; justify-content: space-between; width: 100%; }
     .seq-badge { width: 42px; height: 42px; border: 2px solid #1a73e8; color: #1a73e8; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 800; flex-shrink: 0; background: #fff; }
@@ -420,14 +420,18 @@
                 ? `<div class="arrival-done">✓ 도착 ${item.arrivalTime}</div>` 
                 : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
               
-              // 🌟 요청하신 [비고 고정 노출] + [상세정보/버튼 우측 정렬] 디자인 적용
+              // 🌟 1. 비고 아이콘 ⚠️ 로 변경 및 비고 존재 시 빨간색 강조
+              // 🌟 2. 전화번호 클릭 시 자동 다이얼 활성화 기능 추가 (<a href="tel:..."> 적용)
+              let remarksColor = (item.remarks && item.remarks !== '-' && item.remarks.trim() !== '') ? '#ef4444' : '#64748b';
+              let cleanPhoneNum = item.clientPhone.replace(/[^0-9]/g, '');
+
               html += `
               <div class="dispatch-card">
                 <div class="dispatch-header">
                   <div class="seq-badge">${displaySeq}</div>
                   <div class="dispatch-info" onclick="toggleAccordion('acco_${cleanId}')">
                     <div class="dispatch-title">${item.clientName}</div>
-                    <div style="font-size:0.8rem; color:#64748b; margin-top:4px;">💡 비고: ${item.remarks || '-'}</div>
+                    <div style="font-size:0.8rem; color:${remarksColor}; margin-top:4px; font-weight: 600;">⚠️ 비고: ${item.remarks || '-'}</div>
                   </div>
                   <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:10px;">
                     <div class="dispatch-toggle" onclick="toggleAccordion('acco_${cleanId}')" style="cursor:pointer;">상세정보 ▼</div>
@@ -436,7 +440,7 @@
                 </div>
                 <div id="acco_${cleanId}" style="display:none; margin-top:12px; border-top:1px dashed #e2e8f0; padding-top:12px; font-size:0.85rem; color:#475569;">
                   <div style="margin-bottom:6px;">📍 <strong>주소:</strong> ${item.clientAddr} <button class="btn-copy" onclick="copyAddress('${item.clientAddr}')">복사</button></div>
-                  <div style="margin-bottom:6px;">📞 <strong>번호:</strong> ${item.clientPhone}</div>
+                  <div style="margin-bottom:6px;">📞 <strong>번호:</strong> <a href="tel:${cleanPhoneNum}" style="color:#1a73e8; text-decoration:none; font-weight:bold;">${item.clientPhone}</a></div>
                   <div style="margin-bottom:0;">📦 <strong>품목:</strong> ${item.prodName}</div>
                 </div>
               </div>`;

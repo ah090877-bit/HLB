@@ -1,6 +1,5 @@
 const { google } = require('googleapis');
 const crypto = require('crypto');
-const { Readable } = require('stream'); // 🌟 스트림 처리를 위한 Node.js 코어 모듈 추가
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
@@ -21,27 +20,6 @@ function formatYYMM(dateStr) {
   return `${String(d.getFullYear()).slice(-2)}.${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// 🌟 [핵심 성능 개선] 구글 드라이브 폴더 탐색을 최소화하는 캐시(Cache) 메모리
-const folderCache = {};
-
-async function getOrCreateFolder(drive, name, parentId) {
-  const cacheKey = `${parentId}_${name}`;
-  if (folderCache[cacheKey]) return folderCache[cacheKey];
-
-  const q = `name='${name}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-  const res = await drive.files.list({ q, fields: 'files(id)' });
-  if (res.data.files && res.data.files.length > 0) {
-    folderCache[cacheKey] = res.data.files[0].id;
-    return res.data.files[0].id;
-  }
-  const folder = await drive.files.create({
-    requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] },
-    fields: 'id'
-  });
-  folderCache[cacheKey] = folder.data.id;
-  return folder.data.id;
-}
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'POST 요청만 받습니다.' });
 
@@ -59,13 +37,13 @@ export default async function handler(req, res) {
     }
     if (credentials && credentials.private_key) credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
 
-    // 🌟 Drive 권한까지 완벽 획득
-    const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'] });
+    const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
     const sheets = google.sheets({ version: 'v4', auth });
-    const drive = google.drive({ version: 'v3', auth });
     
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
+    // 🌟 안정성이 검증된 선생님의 GAS 웹앱 URL
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyppHv-1YCsvplSP7TOoS5q0djhye9-1oBFx-jJDZM0B9vZi2wI6s7GRpPK_d_E0g-Z/exec";
 
     // 1. 로그인
     if (action === 'verifyLogin') {
@@ -181,7 +159,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '기록 중 오류 발생' }); }
     }
 
-    // 🌟 5. 사진 업로드 (Vercel Direct Drive Upload Engine - 느린 GAS 완전 배제)
+    // 🌟 5. 사진 업로드 (GAS 연동으로 원상복구 - Quota 에러 영구 해결)
     if (action === 'uploadDashboardPhoto') {
       try {
         const dateString = body.customDate.substring(0, 10);
@@ -192,7 +170,7 @@ export default async function handler(req, res) {
           const pRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_Photos!A:G` });
           for(let r of (pRes.data.values || [])) {
             if(r[0] && String(r[0]).substring(0,10) === dateString && String(r[1]) === String(body.driverId) && String(r[4]).replace(/\s/g,'') === stageClean) {
-              return res.status(200).json({ success: false, message: '이미 해당 단계의 사진이 등록되어 있습니다.\n기존 내역을 삭제 후 다시 시도해주세요.' });
+              return res.status(200).json({ success: false, message: '이미 해당 단계의 사진이 등록되어 있습니다.' });
             }
           }
         } catch(e) {}
@@ -215,39 +193,16 @@ export default async function handler(req, res) {
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
         const newFileName = `${driverName}_${body.stage}_${carNum}_${YYMMDD}_${timeStr}${ext}`;
 
-        // 🌟 다이렉트 폴더 탐색 및 파일 생성 (GAS 안 거치고 여기서 바로 꽂습니다)
-        const yearFolderId = await getOrCreateFolder(drive, yearStr, FOLDER_ID);
-        const monthFolderId = await getOrCreateFolder(drive, monthStr, yearFolderId);
-        const dayFolderId = await getOrCreateFolder(drive, dayStr, monthFolderId);
-
-        const base64String = body.base64Data.split(',')[1];
-        const mimeType = body.base64Data.substring(5, body.base64Data.indexOf(';'));
-        const buffer = Buffer.from(base64String, 'base64');
-        const stream = new Readable();
-        stream.push(buffer);
-        stream.push(null);
-
-        const file = await drive.files.create({
-          requestBody: { name: newFileName, parents: [dayFolderId] },
-          media: { mimeType: mimeType, body: stream },
-          fields: 'id, webViewLink'
+        // 🌟 다시 GAS 웹앱을 호출하여 안정적으로 업로드 처리
+        const gasResponse = await fetch(GAS_WEB_APP_URL, {
+          method: 'POST', body: JSON.stringify({ folderId: FOLDER_ID, fileName: newFileName, base64Data: body.base64Data, yearStr, monthStr, dayStr })
         });
+        const gasResult = await gasResponse.json();
+        if (!gasResult.success) throw new Error("GAS 파일 업로드 실패");
 
-        // 파일 권한 개방
-        try {
-          await drive.permissions.create({
-            fileId: file.data.id,
-            requestBody: { role: 'reader', type: 'anyone' }
-          });
-        } catch(pe) {}
-
-        const uploadedUrl = file.data.webViewLink;
-        const uploadedId = file.data.id;
-
-        // 시트 기록
         await sheets.spreadsheets.values.append({
           spreadsheetId: SPREADSHEET_ID, range: `${prefix}_Photos!A:H`, valueInputOption: 'USER_ENTERED',
-          requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, uploadedUrl, uploadedId, body.mileage || '0' ]] }
+          requestBody: { values: [[ body.customDate, body.driverId, driverName, carNum, body.stage, gasResult.url, gasResult.id, body.mileage || '0' ]] }
         });
 
         if (body.mileage) {
@@ -290,8 +245,8 @@ export default async function handler(req, res) {
             }
           } catch(se) {} 
         }
-        return res.status(200).json({ success: true, url: uploadedUrl });
-      } catch (err) { return res.status(200).json({ success: false, message: `업로드 오류: ${err.message}` }); }
+        return res.status(200).json({ success: true, url: gasResult.url });
+      } catch (err) { return res.status(200).json({ success: false, message: `서버 전송 오류: ${err.message}` }); }
     }
 
     // 6. 사진 조회 
@@ -313,11 +268,11 @@ export default async function handler(req, res) {
       } catch (e) { return res.status(200).json({ success: true, data: [] }); }
     }
 
-    // 7. 사진 삭제 (🌟 Vercel Direct API 연동)
+    // 7. 사진 삭제 (GAS 연동)
     if (action === 'deleteDriverPhoto') {
       try { 
-        // GAS 없이 Vercel에서 직접 드라이브 파일 휴지통으로 이동
-        await drive.files.update({ fileId: body.fileId, requestBody: { trashed: true } }); 
+        // GAS 웹앱을 호출하여 삭제
+        await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) }); 
       } catch (e) { console.log('드라이브 파일 삭제 에러 무시'); }
       
       const prefix = formatYYMM(body.dateKey); 

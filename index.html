@@ -485,7 +485,7 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
-          if (w > 400) { h *= 400/w; w = 400; }
+          if (w > 800) { h *= 800/w; w = 800; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           

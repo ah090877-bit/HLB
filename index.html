@@ -284,8 +284,9 @@
           <div><h3 style="margin:0;">차량운행 및 배송업무일지 출력</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송일자를 선택하고 호차를 누르면 PDF 일지가 생성됩니다.</p></div>
           <input type="date" id="reportDate" style="width:130px; margin:0;" onchange="loadReportList()">
         </div>
-        <div id="reportListContainer" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
-           <p style="grid-column: 1 / -1; text-align:center; color:#64748b;">먼저 날짜를 선택해 주세요.</p>
+        <!-- 🌟 표(Table) 형태의 일지 출력 UI 레이아웃으로 변경 -->
+        <div id="reportListContainer">
+           <p style="text-align:center; color:#64748b;">먼저 날짜를 선택해 주세요.</p>
         </div>
       </div>
 
@@ -745,31 +746,47 @@
       });
     }
 
+    // 🌟 일지 출력 탭 전용 데이터 로드 함수 (표 형태로 UI 전면 개편)
     function loadReportList() {
       const targetDate = document.getElementById('reportDate').value;
       if(!targetDate) return;
-      document.getElementById('reportListContainer').innerHTML = '<p style="grid-column: 1 / -1; text-align:center;">데이터를 분석 중입니다...</p>';
+      document.getElementById('reportListContainer').innerHTML = '<p style="text-align:center;">데이터를 분석 중입니다...</p>';
       
       callGasApi('getDailyReport', { targetDate: targetDate }).then(res => {
         if(res.success) {
           currentReportData = res.data;
-          let html = '';
           const vehicles = Object.keys(res.data);
+          
           if (vehicles.length === 0) {
-            html = '<p style="grid-column: 1 / -1; text-align:center; color:#ef4444; font-weight:bold;">해당 날짜에 운행된 호차 데이터가 없습니다.</p>';
+            document.getElementById('reportListContainer').innerHTML = '<p style="text-align:center; color:#ef4444; font-weight:bold;">해당 날짜에 운행된 호차 데이터가 없습니다.</p>';
           } else {
+            let html = `
+              <table style="width:100%; border-collapse: collapse; text-align:center; font-size:0.9rem;">
+                <thead>
+                  <tr><th>호차</th><th>기사명</th><th>출력</th></tr>
+                </thead>
+                <tbody>
+            `;
             vehicles.sort().forEach(v => {
-              html += `<button class="btn-solid" style="background:#fff; color:#1a73e8; border:2px solid #1a73e8; font-size:1.1rem; font-weight:800; padding:15px; border-radius:10px;" onclick="printReport('${v}')">🖨️ ${v} 출력</button>`;
+              let driverName = currentReportData[v].driverName || '미배정';
+              html += `
+                <tr>
+                  <td style="font-weight:bold; color:#1e293b;">${v}</td>
+                  <td>${driverName}</td>
+                  <td><button class="btn-solid" style="padding:6px 12px; width:auto; font-size:0.8rem; background:#188038;" onclick="printReport('${v}')">🖨️ 출력</button></td>
+                </tr>
+              `;
             });
+            html += `</tbody></table>`;
+            document.getElementById('reportListContainer').innerHTML = html;
           }
-          document.getElementById('reportListContainer').innerHTML = html;
         } else {
-          document.getElementById('reportListContainer').innerHTML = `<p style="grid-column: 1 / -1; text-align:center; color:red; font-weight:bold;">${res.message}</p>`;
+          document.getElementById('reportListContainer').innerHTML = `<p style="text-align:center; color:red; font-weight:bold;">${res.message}</p>`;
         }
       });
     }
 
-    // 🌟 1. 글씨 크기를 대폭 줄이고 2. 셀 여백 축소 3. nowrap 설정으로 A4 한 페이지에 완벽히 들어오도록 레이아웃 고정
+    // 🌟 PDF 인쇄 양식 생성 함수 (거래처명 30%, 비고 40%, 항상 빈칸)
     function printReport(vehicleKey) {
       const data = currentReportData[vehicleKey];
       const targetDate = document.getElementById('reportDate').value;
@@ -781,7 +798,7 @@
         <head>
           <title>${vehicleKey}_업무일지</title>
           <style>
-            @page { size: A4; margin: 8mm; }
+            @page { size: A4; margin: 12mm 8mm 8mm 8mm; }
             body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 10px; margin: 0; padding: 0; color: #000; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
             th, td { border: 1px solid #000; padding: 2px 4px; text-align: center; vertical-align: middle; height: 18px; word-break: keep-all; font-size: 10px; }
@@ -847,7 +864,8 @@
 
           <table>
             <thead>
-              <tr><th style="width:5%">No</th><th style="width:50%">거 래 처 명</th><th style="width:10%" class="nowrap">박스 수</th><th style="width:15%" class="nowrap">도착시간</th><th style="width:20%">비고</th></tr>
+              <!-- 🌟 거래처명 30%, 비고 40% 적용 완료 -->
+              <tr><th style="width:5%">No</th><th style="width:30%">거 래 처 명</th><th style="width:10%" class="nowrap">박스 수</th><th style="width:15%" class="nowrap">도착시간</th><th style="width:40%">비고</th></tr>
             </thead>
             <tbody>
       `;
@@ -857,8 +875,8 @@
         let client = data.clients[i - 1];
         if (client) {
           totalBoxes += client.boxCount;
-          // 폰트 크기 및 높이를 압축하여 세로 팽창 방지
-          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:9.5px;">${client.name}</td><td>${client.boxCount}</td><td>${client.arrTime}</td><td style="font-size:9px;">${client.remarks}</td></tr>`;
+          // 🌟 비고란은 무조건 빈칸(<td></td>)으로 렌더링
+          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:9.5px;">${client.name}</td><td>${client.boxCount}</td><td>${client.arrTime}</td><td></td></tr>`;
         } else {
           html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
         }

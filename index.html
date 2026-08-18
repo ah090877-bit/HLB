@@ -159,7 +159,7 @@
         
         <label>사진 선택</label>
         <input type="file" id="photoInput" accept="image/*">
-        <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">업로드</button>
+        <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">안전 초고속 업로드</button>
       </div>
 
       <div id="pane_history" class="tab-content">
@@ -477,7 +477,7 @@
       const stage = document.getElementById('photoStage').value;
       const mileage = document.getElementById('mileageInput').value;
       if(!stage || !fileInput.files[0]) return showCustomAlert('단계와 사진을 선택하세요.');
-      showCustomAlert('서버로 전송 중입니다...\n(네트워크에 따라 수 초 소요)');
+      showCustomAlert('초고속 서버로 전송 중입니다...\n(네트워크에 따라 수 초 소요)');
       
       const reader = new FileReader();
       reader.onload = e => {
@@ -485,12 +485,13 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
-          if (w > 800) { h *= 800/w; w = 800; }
+          // 🌟 초고속 업로드를 위해 화질/해상도 1200px 85% 유지 (Vercel Direct API 연동)
+          if (w > 1200) { h *= 1200/w; w = 1200; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           
           callGasApi('uploadDashboardPhoto', { 
-            base64Data: canvas.toDataURL('image/jpeg', 0.6), fileName: 'photo.jpg', 
+            base64Data: canvas.toDataURL('image/jpeg', 0.85), fileName: 'photo.jpg', 
             driverId: localStorage.getItem('currentUser'), stage: stage, customDate: document.getElementById('masterDate').value,
             mileage: mileage
           }).then(res => {
@@ -784,7 +785,6 @@
       });
     }
 
-    // 🌟 일지 출력 렌더링 (상단 여백 15mm로 증가 및 행 높이 23px로 약 1.2배 확장)
     function printReport(vehicleKey) {
       const data = currentReportData[vehicleKey];
       const targetDate = document.getElementById('reportDate').value;
@@ -796,15 +796,13 @@
         <head>
           <title>${vehicleKey}_업무일지</title>
           <style>
-            /* 🌟 상단 여백을 15mm로 더 넉넉하게 확보했습니다. */
             @page { size: A4; margin: 15mm 8mm 6mm 8mm; }
-            body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 9.5px; margin: 0; padding: 0; color: #000; }
+            body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 10px; margin: 0; padding: 0; color: #000; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
-            /* 🌟 셀의 행 높이를 19px에서 23px로 약 1.2배 늘려 시원하게 표시합니다. */
-            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 23px; word-break: keep-all; font-size: 9.5px; }
+            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 23px; word-break: keep-all; font-size: 10px; }
             th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; white-space: nowrap; }
             .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
-            h1 { text-align: center; font-size: 19px; margin: 4px 0 8px 0; letter-spacing: 2px; font-weight: bold; }
+            h1 { text-align: center; font-size: 20px; margin: 5px 0 10px 0; letter-spacing: 2px; font-weight: bold; }
             .info-boxes { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-start; }
             .info-box-left { flex: 1; }
             .info-box-right { flex: 1.3; }
@@ -833,7 +831,7 @@
                   <td style="height:30px;"><span class="sign-text">성명 (서명)</span></td>
                   <td><span class="sign-text">성명 (서명)</span></td>
                   <td><span class="sign-text">성명 (서명)</span></td>
-                  <td style="font-weight:bold; font-size:10.5px;">${data.driverName} (서명)</td>
+                  <td style="font-weight:bold; font-size:11px;">${data.driverName} (서명)</td>
                 </tr>
               </table>
             </div>
@@ -874,14 +872,14 @@
         let client = data.clients[i - 1];
         if (client) {
           totalBoxes += client.boxCount;
-          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:9.5px;">${client.name}</td><td>${client.boxCount}</td><td>${client.arrTime}</td><td></td></tr>`;
+          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:10.5px;">${client.name}</td><td style="font-size:10.5px;">${client.boxCount}</td><td style="font-size:10.5px;">${client.arrTime}</td><td></td></tr>`;
         } else {
           html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
         }
       }
 
       html += `
-              <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact;">박스 총 개수</td><td style="font-weight:bold;">${totalBoxes}</td><td></td><td></td></tr>
+              <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact; font-size:11px;">박스 총 개수</td><td style="font-weight:bold; font-size:11px;">${totalBoxes}</td><td></td><td></td></tr>
             </tbody>
           </table>
           

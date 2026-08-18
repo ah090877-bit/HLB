@@ -32,13 +32,13 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* 기사 배차 레이아웃 */
+    /* 🌟 레이아웃 붕괴 방지용 CSS 추가 (min-width: 0; 및 word-break 조정) */
     .dispatch-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 12px; padding: 16px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column; }
     .dispatch-header { display: flex; align-items: center; justify-content: space-between; width: 100%; }
     .seq-badge { width: 42px; height: 42px; border: 2px solid #1a73e8; color: #1a73e8; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 800; flex-shrink: 0; background: #fff; }
-    .dispatch-info { flex: 1; margin-left: 14px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; }
-    .dispatch-title { font-size: 1.05rem; font-weight: 700; color: #1e293b; margin: 0; word-break: keep-all; line-height: 1.3; }
-    .dispatch-toggle { font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 4px; }
+    .dispatch-info { flex: 1; margin-left: 12px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+    .dispatch-title { font-size: 1.05rem; font-weight: 700; color: #1e293b; margin: 0; line-height: 1.3; overflow-wrap: break-word; word-break: keep-all; }
+    .dispatch-toggle { font-size: 0.75rem; color: #64748b; display: flex; align-items: center; gap: 4px; white-space: nowrap; }
     .btn-arrival { background-color: #1a73e8; color: white; padding: 10px 14px; border-radius: 8px; border: none; font-size: 0.85rem; font-weight: 700; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
     .arrival-done { color: #16a34a; background-color: #f0fdf4; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 700; border: 1px solid #bbf7d0; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
     
@@ -416,25 +416,27 @@
               let displaySeq = String(item.orderSeq).split(',')[0].trim(); 
               let cleanId = String(item.orderSeq).replace(/,/g, '').replace(/\s/g, '');
               
+              // 🌟 거래처명에서 (숫자ea) 패턴 깔끔하게 지우기 적용 완료
+              let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
+              
               let btn = item.arrivalTime 
                 ? `<div class="arrival-done">✓ 도착 ${item.arrivalTime}</div>` 
                 : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
               
-              // 🌟 1. 비고 아이콘 ⚠️ 로 변경 및 비고 존재 시 빨간색 강조
-              // 🌟 2. 전화번호 클릭 시 자동 다이얼 활성화 기능 추가 (<a href="tel:..."> 적용)
               let remarksColor = (item.remarks && item.remarks !== '-' && item.remarks.trim() !== '') ? '#ef4444' : '#64748b';
               let cleanPhoneNum = item.clientPhone.replace(/[^0-9]/g, '');
 
+              // 🌟 레이아웃 붕괴 방지용 min-width: 0 삽입 및 여백 조정
               html += `
               <div class="dispatch-card">
                 <div class="dispatch-header">
                   <div class="seq-badge">${displaySeq}</div>
                   <div class="dispatch-info" onclick="toggleAccordion('acco_${cleanId}')">
-                    <div class="dispatch-title">${item.clientName}</div>
+                    <div class="dispatch-title">${displayClientName}</div>
                     <div style="font-size:0.8rem; color:${remarksColor}; margin-top:4px; font-weight: 600;">⚠️ 비고: ${item.remarks || '-'}</div>
                   </div>
-                  <div style="display:flex; align-items:center; gap:8px; flex-shrink:0; margin-left:10px;">
-                    <div class="dispatch-toggle" onclick="toggleAccordion('acco_${cleanId}')" style="cursor:pointer;">상세정보 ▼</div>
+                  <div style="display:flex; align-items:center; gap:6px; flex-shrink:0; margin-left:8px;">
+                    <div class="dispatch-toggle" onclick="toggleAccordion('acco_${cleanId}')" style="cursor:pointer; white-space:nowrap;">상세정보 ▼</div>
                     ${btn}
                   </div>
                 </div>
@@ -569,11 +571,14 @@
 
       adminDailyData.forEach(item => {
         let match = false;
+        // 🌟 관리자 화면에서도 (숫자ea) 삭제 통일 적용
+        let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
+
         if(!searchTxt) match = true;
         else if (filterType === 'all') {
-          if (item.driverName.includes(searchTxt) || item.vehicle.includes(searchTxt) || item.clientName.includes(searchTxt)) match = true;
+          if (item.driverName.includes(searchTxt) || item.vehicle.includes(searchTxt) || displayClientName.includes(searchTxt)) match = true;
         } else if (filterType === 'driver' && item.driverName.includes(searchTxt)) match = true;
-        else if (filterType === 'hospital' && item.clientName.includes(searchTxt)) match = true;
+        else if (filterType === 'hospital' && displayClientName.includes(searchTxt)) match = true;
         else if (filterType === 'vehicle' && item.vehicle.includes(searchTxt)) match = true;
 
         if(!match) return;
@@ -588,7 +593,7 @@
           <td>${item.vehicle}</td>
           <td><strong>${item.driverName}</strong></td>
           <td>${item.driverPhone}</td>
-          <td style="text-align:left;">${item.clientName}</td>
+          <td style="text-align:left;">${displayClientName}</td>
           <td style="font-weight:bold; color:${item.arrivalTime ? '#16a34a' : '#dc2626'}">${item.arrivalTime || '미완료'}</td>
         `;
         tbody.appendChild(tr);
@@ -617,7 +622,9 @@
           const hBody = document.getElementById('adminHospitalsBody');
           hBody.innerHTML = '';
           res.hospitalData.forEach(h => {
-             hBody.innerHTML += `<tr><td style="text-align:left;"><strong>${h.hospital}</strong></td><td>${h.count}건</td><td>${h.avgTime}</td></tr>`;
+             // 🌟 통계 화면에서도 깔끔하게 반영
+             let displayHosp = h.hospital.replace(/\s*\(\d+ea\)/gi, '').trim();
+             hBody.innerHTML += `<tr><td style="text-align:left;"><strong>${displayHosp}</strong></td><td>${h.count}건</td><td>${h.avgTime}</td></tr>`;
           });
           if(res.hospitalData.length === 0) hBody.innerHTML = '<tr><td colspan="3">데이터 없음</td></tr>';
         }
@@ -647,7 +654,7 @@
       chartHospitalIns = new Chart(hospitalCtx, {
         type: 'doughnut',
         data: {
-          labels: topHospitals.map(h => h.hospital),
+          labels: topHospitals.map(h => h.hospital.replace(/\s*\(\d+ea\)/gi, '').trim()),
           datasets: [{ data: topHospitals.map(h => h.count), backgroundColor: ['#3b82f6','#ef4444','#10b981','#f59e0b','#6366f1','#ec4899','#8b5cf6'] }]
         },
         options: { responsive: true, maintainAspectRatio: false }

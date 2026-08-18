@@ -284,7 +284,6 @@
           <div><h3 style="margin:0;">차량운행 및 배송업무일지 출력</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송일자를 선택하고 호차를 누르면 PDF 일지가 생성됩니다.</p></div>
           <input type="date" id="reportDate" style="width:130px; margin:0;" onchange="loadReportList()">
         </div>
-        <!-- 🌟 표(Table) 형태의 일지 출력 UI 레이아웃으로 변경 -->
         <div id="reportListContainer">
            <p style="text-align:center; color:#64748b;">먼저 날짜를 선택해 주세요.</p>
         </div>
@@ -746,7 +745,6 @@
       });
     }
 
-    // 🌟 일지 출력 탭 전용 데이터 로드 함수 (표 형태로 UI 전면 개편)
     function loadReportList() {
       const targetDate = document.getElementById('reportDate').value;
       if(!targetDate) return;
@@ -786,7 +784,7 @@
       });
     }
 
-    // 🌟 PDF 인쇄 양식 생성 함수 (거래처명 30%, 비고 40%, 항상 빈칸)
+    // 🌟 PDF 인쇄 양식 생성 함수 (거래처명 30%, 비고 40%, 항상 빈칸, 아주 연한 성명 (서명) 및 기사명 (서명) 완벽 적용)
     function printReport(vehicleKey) {
       const data = currentReportData[vehicleKey];
       const targetDate = document.getElementById('reportDate').value;
@@ -798,17 +796,19 @@
         <head>
           <title>${vehicleKey}_업무일지</title>
           <style>
-            @page { size: A4; margin: 12mm 8mm 8mm 8mm; }
-            body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 10px; margin: 0; padding: 0; color: #000; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 8px; table-layout: fixed; }
-            th, td { border: 1px solid #000; padding: 2px 4px; text-align: center; vertical-align: middle; height: 18px; word-break: keep-all; font-size: 10px; }
+            @page { size: A4; margin: 10mm 8mm 6mm 8mm; }
+            body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 9.5px; margin: 0; padding: 0; color: #000; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
+            /* 🌟 칸 높이(19px)와 여백(2.5px)을 미세 확장하여 최적의 비율로 세팅 */
+            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 19px; word-break: keep-all; font-size: 9.5px; }
             th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; white-space: nowrap; }
-            .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px; }
-            h1 { text-align: center; font-size: 20px; margin: 5px 0 10px 0; letter-spacing: 2px; font-weight: bold; }
-            .info-boxes { display: flex; gap: 15px; margin-bottom: 10px; align-items: flex-start; }
+            .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
+            h1 { text-align: center; font-size: 19px; margin: 4px 0 8px 0; letter-spacing: 2px; font-weight: bold; }
+            .info-boxes { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-start; }
             .info-box-left { flex: 1; }
             .info-box-right { flex: 1.3; }
-            .sign-text { color: #ccc; font-size: 9px; }
+            /* 🌟 성명 (서명)을 거의 보이지 않을 정도로 아주 연하게 설정 */
+            .sign-text { color: #e0e0e0; font-size: 8.5px; font-weight: normal; -webkit-print-color-adjust: exact; }
             .nowrap { white-space: nowrap; }
           </style>
         </head>
@@ -830,10 +830,11 @@
               <table>
                 <tr><th class="nowrap">보관관리담당</th><th class="nowrap">출고관리담당</th><th class="nowrap">운송관리담당</th><th class="nowrap">배송기사</th></tr>
                 <tr>
-                  <td style="height:25px;"><span class="sign-text">성명/서명</span></td>
-                  <td><span class="sign-text">성명/서명</span></td>
-                  <td><span class="sign-text">성명/서명</span></td>
-                  <td style="font-weight:bold; font-size:11px;">${data.driverName}</td>
+                  <td style="height:26px;"><span class="sign-text">성명 (서명)</span></td>
+                  <td><span class="sign-text">성명 (서명)</span></td>
+                  <td><span class="sign-text">성명 (서명)</span></td>
+                  <!-- 🌟 기사명 옆에 (서명) 추가 -->
+                  <td style="font-weight:bold; font-size:10.5px;">${data.driverName} (서명)</td>
                 </tr>
               </table>
             </div>
@@ -856,7 +857,7 @@
                 </tr>
                 <tr>
                   <th class="nowrap">물류창고 복귀 후</th><td></td>
-                  <td><span class="sign-text">성명/서명</span></td>
+                  <td><span class="sign-text">성명 (서명)</span></td>
                 </tr>
               </table>
             </div>
@@ -864,7 +865,7 @@
 
           <table>
             <thead>
-              <!-- 🌟 거래처명 30%, 비고 40% 적용 완료 -->
+              <!-- 🌟 거래처명(30%), 비고(40%) 적용 -->
               <tr><th style="width:5%">No</th><th style="width:30%">거 래 처 명</th><th style="width:10%" class="nowrap">박스 수</th><th style="width:15%" class="nowrap">도착시간</th><th style="width:40%">비고</th></tr>
             </thead>
             <tbody>
@@ -875,7 +876,6 @@
         let client = data.clients[i - 1];
         if (client) {
           totalBoxes += client.boxCount;
-          // 🌟 비고란은 무조건 빈칸(<td></td>)으로 렌더링
           html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:9.5px;">${client.name}</td><td>${client.boxCount}</td><td>${client.arrTime}</td><td></td></tr>`;
         } else {
           html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;

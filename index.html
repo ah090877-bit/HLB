@@ -485,13 +485,13 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
-          // 🌟 초고속 업로드를 위해 화질/해상도 1200px 85% 유지 (Vercel Direct API 연동)
-          if (w > 1200) { h *= 1200/w; w = 1200; }
+          // 🌟 [핵심 변경] GAS 연동을 위해 1000px, 0.7 압축 (화질 유지 + 속도 최적화)
+          if (w > 1000) { h *= 1000/w; w = 1000; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           
           callGasApi('uploadDashboardPhoto', { 
-            base64Data: canvas.toDataURL('image/jpeg', 0.85), fileName: 'photo.jpg', 
+            base64Data: canvas.toDataURL('image/jpeg', 0.7), fileName: 'photo.jpg', 
             driverId: localStorage.getItem('currentUser'), stage: stage, customDate: document.getElementById('masterDate').value,
             mileage: mileage
           }).then(res => {
@@ -799,7 +799,7 @@
             @page { size: A4; margin: 15mm 8mm 6mm 8mm; }
             body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 10px; margin: 0; padding: 0; color: #000; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
-            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 23px; word-break: keep-all; font-size: 10px; }
+            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 23px; word-break: keep-all; font-size: 9.5px; }
             th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; white-space: nowrap; }
             .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
             h1 { text-align: center; font-size: 20px; margin: 5px 0 10px 0; letter-spacing: 2px; font-weight: bold; }
@@ -831,7 +831,7 @@
                   <td style="height:30px;"><span class="sign-text">성명 (서명)</span></td>
                   <td><span class="sign-text">성명 (서명)</span></td>
                   <td><span class="sign-text">성명 (서명)</span></td>
-                  <td style="font-weight:bold; font-size:11px;">${data.driverName} (서명)</td>
+                  <td style="font-weight:bold; font-size:10.5px;">${data.driverName} (서명)</td>
                 </tr>
               </table>
             </div>
@@ -872,14 +872,14 @@
         let client = data.clients[i - 1];
         if (client) {
           totalBoxes += client.boxCount;
-          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:10.5px;">${client.name}</td><td style="font-size:10.5px;">${client.boxCount}</td><td style="font-size:10.5px;">${client.arrTime}</td><td></td></tr>`;
+          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:9.5px;">${client.name}</td><td>${client.boxCount}</td><td>${client.arrTime}</td><td></td></tr>`;
         } else {
           html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
         }
       }
 
       html += `
-              <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact; font-size:11px;">박스 총 개수</td><td style="font-weight:bold; font-size:11px;">${totalBoxes}</td><td></td><td></td></tr>
+              <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact;">박스 총 개수</td><td style="font-weight:bold;">${totalBoxes}</td><td></td><td></td></tr>
             </tbody>
           </table>
           

@@ -784,7 +784,7 @@
       });
     }
 
-    // 🌟 PDF 인쇄 양식 생성 함수 (거래처명 30%, 비고 40%, 항상 빈칸, 아주 연한 성명 (서명) 및 기사명 (서명) 완벽 적용)
+    // 🌟 일지 출력 렌더링 (상단 여백 15mm로 증가 및 행 높이 23px로 약 1.2배 확장)
     function printReport(vehicleKey) {
       const data = currentReportData[vehicleKey];
       const targetDate = document.getElementById('reportDate').value;
@@ -796,18 +796,18 @@
         <head>
           <title>${vehicleKey}_업무일지</title>
           <style>
-            @page { size: A4; margin: 10mm 8mm 6mm 8mm; }
+            /* 🌟 상단 여백을 15mm로 더 넉넉하게 확보했습니다. */
+            @page { size: A4; margin: 15mm 8mm 6mm 8mm; }
             body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 9.5px; margin: 0; padding: 0; color: #000; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
-            /* 🌟 칸 높이(19px)와 여백(2.5px)을 미세 확장하여 최적의 비율로 세팅 */
-            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 19px; word-break: keep-all; font-size: 9.5px; }
+            /* 🌟 셀의 행 높이를 19px에서 23px로 약 1.2배 늘려 시원하게 표시합니다. */
+            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 23px; word-break: keep-all; font-size: 9.5px; }
             th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; white-space: nowrap; }
             .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
             h1 { text-align: center; font-size: 19px; margin: 4px 0 8px 0; letter-spacing: 2px; font-weight: bold; }
             .info-boxes { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-start; }
             .info-box-left { flex: 1; }
             .info-box-right { flex: 1.3; }
-            /* 🌟 성명 (서명)을 거의 보이지 않을 정도로 아주 연하게 설정 */
             .sign-text { color: #e0e0e0; font-size: 8.5px; font-weight: normal; -webkit-print-color-adjust: exact; }
             .nowrap { white-space: nowrap; }
           </style>
@@ -830,10 +830,9 @@
               <table>
                 <tr><th class="nowrap">보관관리담당</th><th class="nowrap">출고관리담당</th><th class="nowrap">운송관리담당</th><th class="nowrap">배송기사</th></tr>
                 <tr>
-                  <td style="height:26px;"><span class="sign-text">성명 (서명)</span></td>
+                  <td style="height:30px;"><span class="sign-text">성명 (서명)</span></td>
                   <td><span class="sign-text">성명 (서명)</span></td>
                   <td><span class="sign-text">성명 (서명)</span></td>
-                  <!-- 🌟 기사명 옆에 (서명) 추가 -->
                   <td style="font-weight:bold; font-size:10.5px;">${data.driverName} (서명)</td>
                 </tr>
               </table>
@@ -865,7 +864,6 @@
 
           <table>
             <thead>
-              <!-- 🌟 거래처명(30%), 비고(40%) 적용 -->
               <tr><th style="width:5%">No</th><th style="width:30%">거 래 처 명</th><th style="width:10%" class="nowrap">박스 수</th><th style="width:15%" class="nowrap">도착시간</th><th style="width:40%">비고</th></tr>
             </thead>
             <tbody>

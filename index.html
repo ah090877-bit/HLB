@@ -47,10 +47,16 @@
     .admin-welcome-box { border: 2px solid #1a73e8; background-color: #f0f7ff; padding: 12px 18px; border-radius: 8px; display: inline-block; text-align: left; }
     .admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
-    .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02);}
+    .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s ease;}
     .stat-card h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: #64748b; }
     .stat-card .num { font-size: 2rem; font-weight: 800; color: #1e293b; }
+    
+    /* 🌟 추가된 카드 클릭(필터) 스타일 */
+    .stat-card.clickable { cursor: pointer; }
+    .stat-card.clickable:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.08); }
+    .stat-card.clickable.active { border: 2px solid #1a73e8; background-color: #f0f7ff; }
     .stat-card.alert { border-color: #fca5a5; background: #fef2f2; }
+    .stat-card.alert.clickable.active { border: 2px solid #ef4444; background-color: #fef2f2; }
     .stat-card.alert .num { color: #dc2626; }
     
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.85rem; background:white;}
@@ -201,11 +207,24 @@
           <input type="date" id="adminDate" style="width:150px; padding:6px; font-weight:bold; display:inline-block;" onchange="loadAdminDashboard()">
         </div>
         
+        <!-- 🌟 카드를 누르면 필터링 되도록 onclick과 클래스 추가 -->
         <div class="stats-grid">
-          <div class="stat-card"><h3>금일 가동 호차</h3><div class="num" id="statVehicle">0</div></div>
-          <div class="stat-card"><h3>금일 병원 착수건</h3><div class="num" id="statTotal">0</div></div>
-          <div class="stat-card"><h3>배송 완료</h3><div class="num" style="color:#16a34a;" id="statDone">0</div></div>
-          <div class="stat-card alert"><h3>미완료 (이동중)</h3><div class="num" id="statMissing">0</div></div>
+          <div class="stat-card">
+            <h3>금일 가동 호차</h3>
+            <div class="num" id="statVehicle">0</div>
+          </div>
+          <div class="stat-card clickable active" id="cardFilterAll" onclick="setStatusFilter('all')">
+            <h3>금일 병원 착수건</h3>
+            <div class="num" id="statTotal">0</div>
+          </div>
+          <div class="stat-card clickable" id="cardFilterDone" onclick="setStatusFilter('done')">
+            <h3>배송 완료</h3>
+            <div class="num" style="color:#16a34a;" id="statDone">0</div>
+          </div>
+          <div class="stat-card alert clickable" id="cardFilterMissing" onclick="setStatusFilter('missing')">
+            <h3>미완료 (이동중)</h3>
+            <div class="num" id="statMissing">0</div>
+          </div>
         </div>
         
         <div class="search-box-wrap" style="display:flex; gap:10px; margin-bottom:15px; align-items:center;">
@@ -227,6 +246,7 @@
         </table>
       </div>
 
+      <!-- 이하 탭 영역 동일 -->
       <div id="adminPane_analytics" class="tab-content">
         <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
           <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 기사별 이력 및 주행거리 현황입니다.</p></div>
@@ -300,6 +320,9 @@
     let selectedLoginRole = '';
     let compulsoryChangeId = ''; 
     
+    // 🌟 추가된 필터 상태 변수
+    let currentStatusFilter = 'all';
+
     let chartDailyIns, chartHospitalIns, chartVehicleIns;
 
     function switchMainView(viewId) {
@@ -485,7 +508,6 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
-          // 🌟 [핵심 변경] GAS 연동을 위해 1000px, 0.7 압축 (화질 유지 + 속도 최적화)
           if (w > 1000) { h *= 1000/w; w = 1000; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -560,6 +582,21 @@
       if(tab === 'report') loadReportList();
     }
 
+    // 🌟 1. 카드 필터 변경 및 UI 업데이트 함수
+    function setStatusFilter(status) {
+      currentStatusFilter = status;
+      
+      document.getElementById('cardFilterAll').classList.remove('active');
+      document.getElementById('cardFilterDone').classList.remove('active');
+      document.getElementById('cardFilterMissing').classList.remove('active');
+
+      if(status === 'all') document.getElementById('cardFilterAll').classList.add('active');
+      if(status === 'done') document.getElementById('cardFilterDone').classList.add('active');
+      if(status === 'missing') document.getElementById('cardFilterMissing').classList.add('active');
+
+      filterAdminTable();
+    }
+
     function loadAdminDashboard() {
       const targetDate = document.getElementById('adminDate').value;
       document.getElementById('adminDispatchBody').innerHTML = '<tr><td colspan="5">데이터 분석 중...</td></tr>';
@@ -567,36 +604,52 @@
         if(res.success) {
           adminDailyData = res.data;
           document.getElementById('statVehicle').innerText = res.vehicleCount || 0; 
-          filterAdminTable(); 
+          setStatusFilter('all'); // 🌟 날짜 변경 시 '전체' 보기로 리셋 후 테이블 필터 실행
         } else {
           document.getElementById('adminDispatchBody').innerHTML = `<tr><td colspan="5" style="color:red;">${res.message}</td></tr>`;
+          document.getElementById('statTotal').innerText = 0;
+          document.getElementById('statDone').innerText = 0;
+          document.getElementById('statMissing').innerText = 0;
         }
       });
     }
 
+    // 🌟 2. 테이블 필터링 함수 (검색조건 + 상태 버튼 필터 이중 적용)
     function filterAdminTable() {
       const searchTxt = document.getElementById('adminSearchName').value.trim();
       const filterType = document.getElementById('adminSearchFilter').value;
       const tbody = document.getElementById('adminDispatchBody');
       tbody.innerHTML = '';
-      let total = 0, done = 0, missing = 0;
+      
+      let calcTotal = 0, calcDone = 0, calcMissing = 0;
+      let displayCount = 0;
 
       adminDailyData.forEach(item => {
-        let match = false;
+        let textMatch = false;
         let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
 
-        if(!searchTxt) match = true;
+        // 텍스트/카테고리 검색 필터
+        if(!searchTxt) textMatch = true;
         else if (filterType === 'all') {
-          if (item.driverName.includes(searchTxt) || item.vehicle.includes(searchTxt) || displayClientName.includes(searchTxt)) match = true;
-        } else if (filterType === 'driver' && item.driverName.includes(searchTxt)) match = true;
-        else if (filterType === 'hospital' && displayClientName.includes(searchTxt)) match = true;
-        else if (filterType === 'vehicle' && item.vehicle.includes(searchTxt)) match = true;
+          if (item.driverName.includes(searchTxt) || item.vehicle.includes(searchTxt) || displayClientName.includes(searchTxt)) textMatch = true;
+        } else if (filterType === 'driver' && item.driverName.includes(searchTxt)) textMatch = true;
+        else if (filterType === 'hospital' && displayClientName.includes(searchTxt)) textMatch = true;
+        else if (filterType === 'vehicle' && item.vehicle.includes(searchTxt)) textMatch = true;
 
-        if(!match) return;
+        if(!textMatch) return;
 
-        total++;
-        if(item.arrivalTime) done++; else missing++;
+        // 화면 표출과 상관없이 통계 숫자는 검색 결과 기준으로 반영
+        calcTotal++;
+        if(item.arrivalTime) calcDone++; else calcMissing++;
 
+        // 🌟 클릭한 카드(상태) 필터 적용 (이 조건에 안 맞으면 화면 표출 패스)
+        let statusMatch = true;
+        if (currentStatusFilter === 'done' && !item.arrivalTime) statusMatch = false;
+        if (currentStatusFilter === 'missing' && item.arrivalTime) statusMatch = false;
+
+        if (!statusMatch) return;
+
+        displayCount++;
         const tr = document.createElement('tr');
         if(!item.arrivalTime) tr.className = 'row-missing';
         
@@ -610,10 +663,12 @@
         tbody.appendChild(tr);
       });
 
-      document.getElementById('statTotal').innerText = total;
-      document.getElementById('statDone').innerText = done;
-      document.getElementById('statMissing').innerText = missing;
-      if(total === 0) tbody.innerHTML = '<tr><td colspan="5">해당 날짜에 배차 데이터가 없습니다.</td></tr>';
+      // 숫자 업데이트
+      document.getElementById('statTotal').innerText = calcTotal;
+      document.getElementById('statDone').innerText = calcDone;
+      document.getElementById('statMissing').innerText = calcMissing;
+      
+      if(displayCount === 0) tbody.innerHTML = '<tr><td colspan="5">해당 조건에 맞는 배차 데이터가 없습니다.</td></tr>';
     }
 
     function loadAdminAnalytics() {

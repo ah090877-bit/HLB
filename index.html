@@ -51,7 +51,6 @@
     .stat-card h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: #64748b; }
     .stat-card .num { font-size: 2rem; font-weight: 800; color: #1e293b; }
     
-    /* 🌟 추가된 카드 클릭(필터) 스타일 */
     .stat-card.clickable { cursor: pointer; }
     .stat-card.clickable:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.08); }
     .stat-card.clickable.active { border: 2px solid #1a73e8; background-color: #f0f7ff; }
@@ -207,7 +206,6 @@
           <input type="date" id="adminDate" style="width:150px; padding:6px; font-weight:bold; display:inline-block;" onchange="loadAdminDashboard()">
         </div>
         
-        <!-- 🌟 카드를 누르면 필터링 되도록 onclick과 클래스 추가 -->
         <div class="stats-grid">
           <div class="stat-card">
             <h3>금일 가동 호차</h3>
@@ -246,7 +244,6 @@
         </table>
       </div>
 
-      <!-- 이하 탭 영역 동일 -->
       <div id="adminPane_analytics" class="tab-content">
         <div style="background:#f8fafc; padding:15px; border-radius:8px; margin-bottom:20px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
           <div><h3 style="margin:0;">월간 심층 분석 대시보드</h3><p style="margin:4px 0 0 0; font-size:0.8rem; color:#64748b;">배송 현황, 병원별 패턴, 기사별 이력 및 주행거리 현황입니다.</p></div>
@@ -319,8 +316,6 @@
     let currentReportData = {}; 
     let selectedLoginRole = '';
     let compulsoryChangeId = ''; 
-    
-    // 🌟 추가된 필터 상태 변수
     let currentStatusFilter = 'all';
 
     let chartDailyIns, chartHospitalIns, chartVehicleIns;
@@ -582,7 +577,6 @@
       if(tab === 'report') loadReportList();
     }
 
-    // 🌟 1. 카드 필터 변경 및 UI 업데이트 함수
     function setStatusFilter(status) {
       currentStatusFilter = status;
       
@@ -604,7 +598,7 @@
         if(res.success) {
           adminDailyData = res.data;
           document.getElementById('statVehicle').innerText = res.vehicleCount || 0; 
-          setStatusFilter('all'); // 🌟 날짜 변경 시 '전체' 보기로 리셋 후 테이블 필터 실행
+          setStatusFilter('all'); 
         } else {
           document.getElementById('adminDispatchBody').innerHTML = `<tr><td colspan="5" style="color:red;">${res.message}</td></tr>`;
           document.getElementById('statTotal').innerText = 0;
@@ -614,7 +608,6 @@
       });
     }
 
-    // 🌟 2. 테이블 필터링 함수 (검색조건 + 상태 버튼 필터 이중 적용)
     function filterAdminTable() {
       const searchTxt = document.getElementById('adminSearchName').value.trim();
       const filterType = document.getElementById('adminSearchFilter').value;
@@ -628,7 +621,6 @@
         let textMatch = false;
         let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
 
-        // 텍스트/카테고리 검색 필터
         if(!searchTxt) textMatch = true;
         else if (filterType === 'all') {
           if (item.driverName.includes(searchTxt) || item.vehicle.includes(searchTxt) || displayClientName.includes(searchTxt)) textMatch = true;
@@ -638,11 +630,9 @@
 
         if(!textMatch) return;
 
-        // 화면 표출과 상관없이 통계 숫자는 검색 결과 기준으로 반영
         calcTotal++;
         if(item.arrivalTime) calcDone++; else calcMissing++;
 
-        // 🌟 클릭한 카드(상태) 필터 적용 (이 조건에 안 맞으면 화면 표출 패스)
         let statusMatch = true;
         if (currentStatusFilter === 'done' && !item.arrivalTime) statusMatch = false;
         if (currentStatusFilter === 'missing' && item.arrivalTime) statusMatch = false;
@@ -663,7 +653,6 @@
         tbody.appendChild(tr);
       });
 
-      // 숫자 업데이트
       document.getElementById('statTotal').innerText = calcTotal;
       document.getElementById('statDone').innerText = calcDone;
       document.getElementById('statMissing').innerText = calcMissing;
@@ -814,7 +803,11 @@
           if (vehicles.length === 0) {
             document.getElementById('reportListContainer').innerHTML = '<p style="text-align:center; color:#ef4444; font-weight:bold;">해당 날짜에 운행된 호차 데이터가 없습니다.</p>';
           } else {
+            // 🌟 전체 출력 버튼 상단에 배치
             let html = `
+              <div style="text-align: right; margin-bottom: 15px;">
+                 <button class="btn-solid" style="padding:10px 18px; width:auto; font-size:0.9rem; background:#1e40af; border-radius:8px;" onclick="printAllReports()">📑 금일 호차 전체 출력</button>
+              </div>
               <table style="width:100%; border-collapse: collapse; text-align:center; font-size:0.9rem;">
                 <thead>
                   <tr><th>호차</th><th>기사명</th><th>출력</th></tr>
@@ -927,14 +920,14 @@
         let client = data.clients[i - 1];
         if (client) {
           totalBoxes += client.boxCount;
-          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:9.5px;">${client.name}</td><td>${client.boxCount}</td><td>${client.arrTime}</td><td></td></tr>`;
+          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:10.5px;">${client.name}</td><td style="font-size:10.5px;">${client.boxCount}</td><td style="font-size:10.5px;">${client.arrTime}</td><td></td></tr>`;
         } else {
           html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
         }
       }
 
       html += `
-              <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact;">박스 총 개수</td><td style="font-weight:bold;">${totalBoxes}</td><td></td><td></td></tr>
+              <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact; font-size:11px;">박스 총 개수</td><td style="font-weight:bold; font-size:11px;">${totalBoxes}</td><td></td><td></td></tr>
             </tbody>
           </table>
           
@@ -942,6 +935,135 @@
         </body>
         </html>
       `;
+
+      printWin.document.write(html);
+      printWin.document.close();
+      printWin.focus();
+      
+      setTimeout(() => {
+        printWin.print();
+      }, 500);
+    }
+
+    // 🌟 금일 호차 전체를 페이지 분할하여 한 번에 출력하는 함수
+    function printAllReports() {
+      const targetDate = document.getElementById('reportDate').value;
+      const vehicles = Object.keys(currentReportData).sort();
+      
+      if(vehicles.length === 0) return showCustomAlert("출력할 데이터가 없습니다.");
+      
+      const printWin = window.open('', '', 'width=900,height=1000');
+      
+      let html = `
+        <html>
+        <head>
+          <title>${targetDate}_전체_업무일지</title>
+          <style>
+            @page { size: A4; margin: 15mm 8mm 6mm 8mm; }
+            body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 10px; margin: 0; padding: 0; color: #000; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
+            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 23px; word-break: keep-all; font-size: 9.5px; }
+            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; white-space: nowrap; }
+            .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
+            h1 { text-align: center; font-size: 20px; margin: 5px 0 10px 0; letter-spacing: 2px; font-weight: bold; }
+            .info-boxes { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-start; }
+            .info-box-left { flex: 1; }
+            .info-box-right { flex: 1.3; }
+            .sign-text { color: #e0e0e0; font-size: 8.5px; font-weight: normal; -webkit-print-color-adjust: exact; }
+            .nowrap { white-space: nowrap; }
+            /* 🌟 각 호차 리스트마다 A4 페이지를 분할해주는 CSS 클래스 */
+            .page-break { page-break-before: always; }
+          </style>
+        </head>
+        <body>
+      `;
+
+      vehicles.forEach((vehicleKey, index) => {
+        const data = currentReportData[vehicleKey];
+        
+        // 첫 번째 호차 이후부터는 무조건 새로운 A4 페이지로 분할
+        if(index > 0) { html += `<div class="page-break"></div>`; }
+        
+        html += `
+          <div>
+            <div class="header-wrap">
+              <div style="font-size: 14px; font-weight: bold;">[${vehicleKey}]</div>
+              <div style="font-size: 14px; font-weight: bold; color:#e2402b;"><i><b>HLB</b> Therapeutics</i></div>
+            </div>
+            <h1>차량운행 및 배송업무일지</h1>
+            
+            <div class="info-boxes">
+              <div class="info-box-left">
+                <table>
+                  <tr><th style="width:30%">배송일자</th><td style="text-align:left; padding-left:8px;">${targetDate}</td></tr>
+                  <tr><th>센터</th><td style="text-align:left; padding-left:8px;">이천센터</td></tr>
+                </table>
+              </div>
+              <div class="info-box-right">
+                <table>
+                  <tr><th class="nowrap">보관관리담당</th><th class="nowrap">출고관리담당</th><th class="nowrap">운송관리담당</th><th class="nowrap">배송기사</th></tr>
+                  <tr>
+                    <td style="height:30px;"><span class="sign-text">성명 (서명)</span></td>
+                    <td><span class="sign-text">성명 (서명)</span></td>
+                    <td><span class="sign-text">성명 (서명)</span></td>
+                    <td style="font-weight:bold; font-size:10.5px;">${data.driverName} (서명)</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+
+            <div class="info-boxes">
+              <div class="info-box-left">
+                <table>
+                  <tr><th rowspan="3" style="width:25%">주행거리</th><th style="width:40%">물류창고 출발 시</th><td style="text-align:right; padding-right:8px;" class="nowrap">${data.startKm ? data.startKm + ' km' : ''}</td></tr>
+                  <tr><th>배송완료 시</th><td style="text-align:right; padding-right:8px;" class="nowrap"> km</td></tr>
+                  <tr><th>물류창고 도착 시</th><td style="text-align:right; padding-right:8px;" class="nowrap">${data.endKm ? data.endKm + ' km' : ''}</td></tr>
+                </table>
+              </div>
+              <div class="info-box-right">
+                <table>
+                  <tr>
+                    <th rowspan="2" style="width:20%">차량<br>안전점검</th>
+                    <th style="width:35%" class="nowrap">물류창고 출발 전</th><td style="width:15%"></td>
+                    <th style="width:30%" class="nowrap">배송안전교육</th>
+                  </tr>
+                  <tr>
+                    <th class="nowrap">물류창고 복귀 후</th><td></td>
+                    <td><span class="sign-text">성명 (서명)</span></td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr><th style="width:5%">No</th><th style="width:30%">거 래 처 명</th><th style="width:10%" class="nowrap">박스 수</th><th style="width:15%" class="nowrap">도착시간</th><th style="width:40%">비고</th></tr>
+              </thead>
+              <tbody>
+        `;
+
+        let totalBoxes = 0;
+        for (let i = 1; i <= 31; i++) {
+          let client = data.clients[i - 1];
+          if (client) {
+            totalBoxes += client.boxCount;
+            html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:10.5px;">${client.name}</td><td style="font-size:10.5px;">${client.boxCount}</td><td style="font-size:10.5px;">${client.arrTime}</td><td></td></tr>`;
+          } else {
+            html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
+          }
+        }
+
+        html += `
+                <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact; font-size:11px;">박스 총 개수</td><td style="font-weight:bold; font-size:11px;">${totalBoxes}</td><td></td><td></td></tr>
+              </tbody>
+            </table>
+            
+            <div style="text-align:center; font-size:10px;">1</div>
+          </div>
+        `;
+      }); // forEach end
+
+      html += `</body></html>`;
 
       printWin.document.write(html);
       printWin.document.close();

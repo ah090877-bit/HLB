@@ -394,19 +394,21 @@
 
     function loginSuccess(id, role, name) {
       localStorage.setItem('currentUser', id); localStorage.setItem('userRole', role); localStorage.setItem('userName', name);
+
+      const kst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString();
       
       if(role === 'driver') {
         document.getElementById('driverNameDisplay').innerText = `${name}`;
         switchMainView('driverView');
-        document.getElementById('masterDate').value = new Date().toISOString().substring(0,10);
-        document.getElementById('filterMonth').value = new Date().toISOString().substring(0,7);
+        document.getElementById('masterDate').value = kst.substring(0,10);
+        document.getElementById('filterMonth').value = kst.substring(0,7);
         loadDispatchList(); 
       } else if (role === 'admin' || role === 'manager') {
         document.getElementById('adminGreetingDisplay').innerText = `${name}`;
         switchMainView('adminView');
-        document.getElementById('adminDate').value = new Date().toISOString().substring(0,10);
-        document.getElementById('adminMonthStats').value = new Date().toISOString().substring(0,7);
-        document.getElementById('reportDate').value = new Date().toISOString().substring(0,10);
+        document.getElementById('adminDate').value = kst.substring(0,10);
+        document.getElementById('adminMonthStats').value = kst.substring(0,7);
+        document.getElementById('reportDate').value = kst.substring(0,10);
         loadAdminDashboard();
         loadReportList();
       }

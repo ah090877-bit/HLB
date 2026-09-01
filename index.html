@@ -145,7 +145,9 @@
       </div>
       
       <div id="pane_dispatch" class="tab-content active">
-        <h3 style="margin: 0 0 12px 0; font-size: 1rem;">운행 목록 <span id="vehicleDisplay" style="font-size:0.8rem; color:#64748b;"></span></h3>
+        <h3 style="margin: 0 0 12px 0; font-size: 1rem; display:flex; align-items:center;">
+          운행 목록 <span id="vehicleDisplay" style="font-size:0.8rem; color:#64748b; margin-left:6px;"></span>
+        </h3>
         <div id="dispatchListContainer"></div>
       </div>
       
@@ -164,7 +166,7 @@
         
         <label>사진 선택</label>
         <input type="file" id="photoInput" accept="image/*">
-        <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">안전 초고속 업로드</button>
+        <button class="btn-solid" style="background:#188038;" onclick="uploadPhoto()">업로드</button>
       </div>
 
       <div id="pane_history" class="tab-content">
@@ -318,6 +320,10 @@
     let compulsoryChangeId = ''; 
     let currentStatusFilter = 'all';
 
+    // 🌟 다중 호차를 위한 기사 전용 글로벌 변수
+    let currentDriverDispatch = [];
+    let currentAssignedVehicles = [];
+
     let chartDailyIns, chartHospitalIns, chartVehicleIns;
 
     function switchMainView(viewId) {
@@ -394,7 +400,7 @@
 
     function loginSuccess(id, role, name) {
       localStorage.setItem('currentUser', id); localStorage.setItem('userRole', role); localStorage.setItem('userName', name);
-
+      
       const kst = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString();
       
       if(role === 'driver') {
@@ -435,52 +441,92 @@
       el.style.display = el.style.display === 'none' ? 'block' : 'none';
     }
 
+    // 🌟 다중 호차를 완벽하게 분리하여 보여주는 기사 배차 렌더링 로직
+    let lastSelectedVehicle = null;
+
     function loadDispatchList() {
+      if (document.getElementById('driverVehicleSelect')) {
+          lastSelectedVehicle = document.getElementById('driverVehicleSelect').value;
+      }
       const targetDate = document.getElementById('masterDate').value;
       document.getElementById('dispatchListContainer').innerHTML = '<p style="padding:15px; text-align:center;">데이터를 불러오는 중입니다...</p>';
       
       callGasApi('getDriverDispatch', { driverId: localStorage.getItem('currentUser'), targetDate }).then(res => {
         if(res.success) {
-          if(res.data.length === 0) document.getElementById('dispatchListContainer').innerHTML = `<p style="padding:15px; text-align:center; color:#64748b;">배차 스케줄이 없습니다.</p>`;
-          else {
-            document.getElementById('vehicleDisplay').innerText = `[당일배정: ${res.vehicle}]`;
-            let html = '';
-            res.data.forEach(item => {
-              let displaySeq = String(item.orderSeq).split(',')[0].trim(); 
-              let cleanId = String(item.orderSeq).replace(/,/g, '').replace(/\s/g, '');
-              let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
-              
-              let btn = item.arrivalTime 
-                ? `<div class="arrival-done">✓ 도착 ${item.arrivalTime}</div>` 
-                : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
-              
-              let remarksColor = (item.remarks && item.remarks !== '-' && item.remarks.trim() !== '') ? '#ef4444' : '#64748b';
-              let cleanPhoneNum = item.clientPhone.replace(/[^0-9]/g, '');
+          if(res.data.length === 0) {
+            document.getElementById('dispatchListContainer').innerHTML = `<p style="padding:15px; text-align:center; color:#64748b;">배차 스케줄이 없습니다.</p>`;
+            document.getElementById('vehicleDisplay').innerHTML = '';
+          } else {
+            currentDriverDispatch = res.data;
+            currentAssignedVehicles = res.vehicle.split(',').map(s => s.trim());
 
-              html += `
-              <div class="dispatch-card">
-                <div class="dispatch-header">
-                  <div class="seq-badge">${displaySeq}</div>
-                  <div class="dispatch-info" onclick="toggleAccordion('acco_${cleanId}')">
-                    <div class="dispatch-title">${displayClientName}</div>
-                    <div style="font-size:0.8rem; color:${remarksColor}; margin-top:4px; font-weight: 600;">⚠️ 비고: ${item.remarks || '-'}</div>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:6px; flex-shrink:0; margin-left:8px;">
-                    <div class="dispatch-toggle" onclick="toggleAccordion('acco_${cleanId}')" style="cursor:pointer; white-space:nowrap;">상세정보 ▼</div>
-                    ${btn}
-                  </div>
-                </div>
-                <div id="acco_${cleanId}" style="display:none; margin-top:12px; border-top:1px dashed #e2e8f0; padding-top:12px; font-size:0.85rem; color:#475569;">
-                  <div style="margin-bottom:6px;">📍 <strong>주소:</strong> ${item.clientAddr} <button class="btn-copy" onclick="copyAddress('${item.clientAddr}')">복사</button></div>
-                  <div style="margin-bottom:6px;">📞 <strong>번호:</strong> <a href="tel:${cleanPhoneNum}" style="color:#1a73e8; text-decoration:none; font-weight:bold;">${item.clientPhone}</a></div>
-                  <div style="margin-bottom:0;">📦 <strong>품목:</strong> ${item.prodName}</div>
-                </div>
-              </div>`;
-            });
-            document.getElementById('dispatchListContainer').innerHTML = html;
+            // 여러 호차일 경우 드롭다운(select) 생성
+            if (currentAssignedVehicles.length > 1) {
+              document.getElementById('vehicleDisplay').innerHTML = `
+                <select id="driverVehicleSelect" onchange="renderDriverDispatch()" style="margin-left: 5px; padding: 3px 8px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; border: 1px solid #1a73e8; color: #1a73e8; background: #fff; cursor:pointer;">
+                  ${currentAssignedVehicles.map(v => `<option value="${v}">${v}</option>`).join('')}
+                </select>
+              `;
+              if (lastSelectedVehicle && currentAssignedVehicles.includes(lastSelectedVehicle)) {
+                  document.getElementById('driverVehicleSelect').value = lastSelectedVehicle;
+              }
+            } else {
+              document.getElementById('vehicleDisplay').innerText = `[당일배정: ${currentAssignedVehicles[0]}]`;
+            }
+            renderDriverDispatch();
           }
-        } else { document.getElementById('dispatchListContainer').innerHTML = `<p style="padding:15px; text-align:center; color:#dc2626; font-weight:bold;">${res.message}</p>`; }
+        } else { 
+          document.getElementById('dispatchListContainer').innerHTML = `<p style="padding:15px; text-align:center; color:#dc2626; font-weight:bold;">${res.message}</p>`; 
+        }
       });
+    }
+
+    function renderDriverDispatch() {
+      const container = document.getElementById('dispatchListContainer');
+      let selectedVehicle = currentAssignedVehicles[0];
+      
+      if (currentAssignedVehicles.length > 1) {
+        selectedVehicle = document.getElementById('driverVehicleSelect').value;
+      }
+
+      let html = '';
+      currentDriverDispatch.forEach(item => {
+        if (item.vehicle !== selectedVehicle) return; // 🌟 드롭다운에서 선택된 호차만 화면에 렌더링
+
+        let displaySeq = String(item.orderSeq).split(',')[0].trim(); 
+        let cleanId = String(item.orderSeq).replace(/,/g, '').replace(/\s/g, '') + "_" + item.vehicle;
+        let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
+        
+        let btn = item.arrivalTime 
+          ? `<div class="arrival-done">✓ 도착 ${item.arrivalTime}</div>` 
+          : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
+        
+        let remarksColor = (item.remarks && item.remarks !== '-' && item.remarks.trim() !== '') ? '#ef4444' : '#64748b';
+        let cleanPhoneNum = item.clientPhone.replace(/[^0-9]/g, '');
+
+        html += `
+        <div class="dispatch-card">
+          <div class="dispatch-header">
+            <div class="seq-badge">${displaySeq}</div>
+            <div class="dispatch-info" onclick="toggleAccordion('acco_${cleanId}')">
+              <div class="dispatch-title">${displayClientName}</div>
+              <div style="font-size:0.8rem; color:${remarksColor}; margin-top:4px; font-weight: 600;">⚠️ 비고: ${item.remarks || '-'}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0; margin-left:8px;">
+              <div class="dispatch-toggle" onclick="toggleAccordion('acco_${cleanId}')" style="cursor:pointer; white-space:nowrap;">상세정보 ▼</div>
+              ${btn}
+            </div>
+          </div>
+          <div id="acco_${cleanId}" style="display:none; margin-top:12px; border-top:1px dashed #e2e8f0; padding-top:12px; font-size:0.85rem; color:#475569;">
+            <div style="margin-bottom:6px;">📍 <strong>주소:</strong> ${item.clientAddr} <button class="btn-copy" onclick="copyAddress('${item.clientAddr}')">복사</button></div>
+            <div style="margin-bottom:6px;">📞 <strong>번호:</strong> <a href="tel:${cleanPhoneNum}" style="color:#1a73e8; text-decoration:none; font-weight:bold;">${item.clientPhone}</a></div>
+            <div style="margin-bottom:0;">📦 <strong>품목:</strong> ${item.prodName}</div>
+          </div>
+        </div>`;
+      });
+      
+      if(html === '') html = '<p style="padding:15px; text-align:center; color:#64748b;">해당 호차에 배정된 내역이 없습니다.</p>';
+      container.innerHTML = html;
     }
 
     function markArrival(orderNum, orderSeq) {
@@ -497,7 +543,7 @@
       const stage = document.getElementById('photoStage').value;
       const mileage = document.getElementById('mileageInput').value;
       if(!stage || !fileInput.files[0]) return showCustomAlert('단계와 사진을 선택하세요.');
-      showCustomAlert('초고속 서버로 전송 중입니다...\n(네트워크에 따라 수 초 소요)');
+      showCustomAlert('서버로 전송 중입니다...\n(네트워크에 따라 수 초 소요)');
       
       const reader = new FileReader();
       reader.onload = e => {
@@ -505,6 +551,7 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
+          // 화질/해상도 1000px, 70% 최적화 (가장 안정적)
           if (w > 1000) { h *= 1000/w; w = 1000; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -792,6 +839,7 @@
       });
     }
 
+    // 🌟 일지 출력 렌더링 (전체 출력 버튼 삭제 원상복구 반영)
     function loadReportList() {
       const targetDate = document.getElementById('reportDate').value;
       if(!targetDate) return;
@@ -805,11 +853,7 @@
           if (vehicles.length === 0) {
             document.getElementById('reportListContainer').innerHTML = '<p style="text-align:center; color:#ef4444; font-weight:bold;">해당 날짜에 운행된 호차 데이터가 없습니다.</p>';
           } else {
-            // 🌟 전체 출력 버튼 상단에 배치
             let html = `
-              <div style="text-align: right; margin-bottom: 15px;">
-                 <button class="btn-solid" style="padding:10px 18px; width:auto; font-size:0.9rem; background:#1e40af; border-radius:8px;" onclick="printAllReports()">📑 금일 호차 전체 출력</button>
-              </div>
               <table style="width:100%; border-collapse: collapse; text-align:center; font-size:0.9rem;">
                 <thead>
                   <tr><th>호차</th><th>기사명</th><th>출력</th></tr>
@@ -937,135 +981,6 @@
         </body>
         </html>
       `;
-
-      printWin.document.write(html);
-      printWin.document.close();
-      printWin.focus();
-      
-      setTimeout(() => {
-        printWin.print();
-      }, 500);
-    }
-
-    // 🌟 금일 호차 전체를 페이지 분할하여 한 번에 출력하는 함수
-    function printAllReports() {
-      const targetDate = document.getElementById('reportDate').value;
-      const vehicles = Object.keys(currentReportData).sort();
-      
-      if(vehicles.length === 0) return showCustomAlert("출력할 데이터가 없습니다.");
-      
-      const printWin = window.open('', '', 'width=900,height=1000');
-      
-      let html = `
-        <html>
-        <head>
-          <title>${targetDate}_전체_업무일지</title>
-          <style>
-            @page { size: A4; margin: 15mm 8mm 6mm 8mm; }
-            body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 10px; margin: 0; padding: 0; color: #000; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
-            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 23px; word-break: keep-all; font-size: 9.5px; }
-            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; white-space: nowrap; }
-            .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
-            h1 { text-align: center; font-size: 20px; margin: 5px 0 10px 0; letter-spacing: 2px; font-weight: bold; }
-            .info-boxes { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-start; }
-            .info-box-left { flex: 1; }
-            .info-box-right { flex: 1.3; }
-            .sign-text { color: #e0e0e0; font-size: 8.5px; font-weight: normal; -webkit-print-color-adjust: exact; }
-            .nowrap { white-space: nowrap; }
-            /* 🌟 각 호차 리스트마다 A4 페이지를 분할해주는 CSS 클래스 */
-            .page-break { page-break-before: always; }
-          </style>
-        </head>
-        <body>
-      `;
-
-      vehicles.forEach((vehicleKey, index) => {
-        const data = currentReportData[vehicleKey];
-        
-        // 첫 번째 호차 이후부터는 무조건 새로운 A4 페이지로 분할
-        if(index > 0) { html += `<div class="page-break"></div>`; }
-        
-        html += `
-          <div>
-            <div class="header-wrap">
-              <div style="font-size: 14px; font-weight: bold;">[${vehicleKey}]</div>
-              <div style="font-size: 14px; font-weight: bold; color:#e2402b;"><i><b>HLB</b> Therapeutics</i></div>
-            </div>
-            <h1>차량운행 및 배송업무일지</h1>
-            
-            <div class="info-boxes">
-              <div class="info-box-left">
-                <table>
-                  <tr><th style="width:30%">배송일자</th><td style="text-align:left; padding-left:8px;">${targetDate}</td></tr>
-                  <tr><th>센터</th><td style="text-align:left; padding-left:8px;">이천센터</td></tr>
-                </table>
-              </div>
-              <div class="info-box-right">
-                <table>
-                  <tr><th class="nowrap">보관관리담당</th><th class="nowrap">출고관리담당</th><th class="nowrap">운송관리담당</th><th class="nowrap">배송기사</th></tr>
-                  <tr>
-                    <td style="height:30px;"><span class="sign-text">성명 (서명)</span></td>
-                    <td><span class="sign-text">성명 (서명)</span></td>
-                    <td><span class="sign-text">성명 (서명)</span></td>
-                    <td style="font-weight:bold; font-size:10.5px;">${data.driverName} (서명)</td>
-                  </tr>
-                </table>
-              </div>
-            </div>
-
-            <div class="info-boxes">
-              <div class="info-box-left">
-                <table>
-                  <tr><th rowspan="3" style="width:25%">주행거리</th><th style="width:40%">물류창고 출발 시</th><td style="text-align:right; padding-right:8px;" class="nowrap">${data.startKm ? data.startKm + ' km' : ''}</td></tr>
-                  <tr><th>배송완료 시</th><td style="text-align:right; padding-right:8px;" class="nowrap"> km</td></tr>
-                  <tr><th>물류창고 도착 시</th><td style="text-align:right; padding-right:8px;" class="nowrap">${data.endKm ? data.endKm + ' km' : ''}</td></tr>
-                </table>
-              </div>
-              <div class="info-box-right">
-                <table>
-                  <tr>
-                    <th rowspan="2" style="width:20%">차량<br>안전점검</th>
-                    <th style="width:35%" class="nowrap">물류창고 출발 전</th><td style="width:15%"></td>
-                    <th style="width:30%" class="nowrap">배송안전교육</th>
-                  </tr>
-                  <tr>
-                    <th class="nowrap">물류창고 복귀 후</th><td></td>
-                    <td><span class="sign-text">성명 (서명)</span></td>
-                  </tr>
-                </table>
-              </div>
-            </div>
-
-            <table>
-              <thead>
-                <tr><th style="width:5%">No</th><th style="width:30%">거 래 처 명</th><th style="width:10%" class="nowrap">박스 수</th><th style="width:15%" class="nowrap">도착시간</th><th style="width:40%">비고</th></tr>
-              </thead>
-              <tbody>
-        `;
-
-        let totalBoxes = 0;
-        for (let i = 1; i <= 31; i++) {
-          let client = data.clients[i - 1];
-          if (client) {
-            totalBoxes += client.boxCount;
-            html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:10.5px;">${client.name}</td><td style="font-size:10.5px;">${client.boxCount}</td><td style="font-size:10.5px;">${client.arrTime}</td><td></td></tr>`;
-          } else {
-            html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
-          }
-        }
-
-        html += `
-                <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact; font-size:11px;">박스 총 개수</td><td style="font-weight:bold; font-size:11px;">${totalBoxes}</td><td></td><td></td></tr>
-              </tbody>
-            </table>
-            
-            <div style="text-align:center; font-size:10px;">1</div>
-          </div>
-        `;
-      }); // forEach end
-
-      html += `</body></html>`;
 
       printWin.document.write(html);
       printWin.document.close();

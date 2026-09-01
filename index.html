@@ -493,7 +493,6 @@
         let cleanId = String(item.orderSeq).replace(/,/g, '').replace(/\s/g, '') + "_" + item.vehicle;
         let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
         
-        // 🌟 꼬리표(호차) 데이터를 백엔드로 넘기기 위해 markArrival 함수 호출 인자 추가 (item.vehicle)
         let btn = item.arrivalTime 
           ? `<div class="arrival-done">✓ 도착 ${item.arrivalTime}</div>` 
           : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}', '${item.vehicle}')">거래처 도착</button>`;
@@ -526,7 +525,6 @@
       container.innerHTML = html;
     }
 
-    // 🌟 vehicle(호차) 인자를 받아서 백엔드로 전달
     function markArrival(orderNum, orderSeq, vehicle) {
       showCustomAlert("현재 시간으로 도착을 기록하시겠습니까?", () => {
         callGasApi('recordArrivalTime', { driverId: localStorage.getItem('currentUser'), targetDate: document.getElementById('masterDate').value, orderNum, orderSeq, vehicle: vehicle }).then(res => {
@@ -849,7 +847,11 @@
           if (vehicles.length === 0) {
             document.getElementById('reportListContainer').innerHTML = '<p style="text-align:center; color:#ef4444; font-weight:bold;">해당 날짜에 운행된 호차 데이터가 없습니다.</p>';
           } else {
+            // 🌟 금일 호차 전체 출력 버튼 원상복구
             let html = `
+              <div style="text-align: right; margin-bottom: 15px;">
+                 <button class="btn-solid" style="padding:10px 18px; width:auto; font-size:0.9rem; background:#1e40af; border-radius:8px;" onclick="printAllReports()">📑 금일 호차 전체 출력</button>
+              </div>
               <table style="width:100%; border-collapse: collapse; text-align:center; font-size:0.9rem;">
                 <thead>
                   <tr><th>호차</th><th>기사명</th><th>출력</th></tr>
@@ -962,7 +964,7 @@
         let client = data.clients[i - 1];
         if (client) {
           totalBoxes += client.boxCount;
-          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:10.5px;">${client.name}</td><td style="font-size:10.5px;">${client.boxCount}</td><td style="font-size:10.5px;">${client.arrTime}</td><td></td></tr>`;
+          html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:9.5px;">${client.name}</td><td style="font-size:9.5px;">${client.boxCount}</td><td style="font-size:9.5px;">${client.arrTime}</td><td></td></tr>`;
         } else {
           html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
         }
@@ -977,6 +979,133 @@
         </body>
         </html>
       `;
+
+      printWin.document.write(html);
+      printWin.document.close();
+      printWin.focus();
+      
+      setTimeout(() => {
+        printWin.print();
+      }, 500);
+    }
+
+    // 🌟 금일 호차 전체 출력 기능 (페이지 분할 포함) 복구 완료
+    function printAllReports() {
+      const targetDate = document.getElementById('reportDate').value;
+      const vehicles = Object.keys(currentReportData).sort();
+      
+      if(vehicles.length === 0) return showCustomAlert("출력할 데이터가 없습니다.");
+      
+      const printWin = window.open('', '', 'width=900,height=1000');
+      
+      let html = `
+        <html>
+        <head>
+          <title>${targetDate}_전체_업무일지</title>
+          <style>
+            @page { size: A4; margin: 15mm 8mm 6mm 8mm; }
+            body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 10px; margin: 0; padding: 0; color: #000; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 6px; table-layout: fixed; }
+            th, td { border: 1px solid #000; padding: 2.5px 4px; text-align: center; vertical-align: middle; height: 23px; word-break: keep-all; font-size: 9.5px; }
+            th { background-color: #f2f2f2 !important; -webkit-print-color-adjust: exact; font-weight: bold; white-space: nowrap; }
+            .header-wrap { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 4px; }
+            h1 { text-align: center; font-size: 20px; margin: 5px 0 10px 0; letter-spacing: 2px; font-weight: bold; }
+            .info-boxes { display: flex; gap: 12px; margin-bottom: 6px; align-items: flex-start; }
+            .info-box-left { flex: 1; }
+            .info-box-right { flex: 1.3; }
+            .sign-text { color: #e0e0e0; font-size: 8.5px; font-weight: normal; -webkit-print-color-adjust: exact; }
+            .nowrap { white-space: nowrap; }
+            .page-break { page-break-before: always; }
+          </style>
+        </head>
+        <body>
+      `;
+
+      vehicles.forEach((vehicleKey, index) => {
+        const data = currentReportData[vehicleKey];
+        
+        if(index > 0) { html += `<div class="page-break"></div>`; }
+        
+        html += `
+          <div>
+            <div class="header-wrap">
+              <div style="font-size: 14px; font-weight: bold;">[${vehicleKey}]</div>
+              <div style="font-size: 14px; font-weight: bold; color:#e2402b;"><i><b>HLB</b> Therapeutics</i></div>
+            </div>
+            <h1>차량운행 및 배송업무일지</h1>
+            
+            <div class="info-boxes">
+              <div class="info-box-left">
+                <table>
+                  <tr><th style="width:30%">배송일자</th><td style="text-align:left; padding-left:8px;">${targetDate}</td></tr>
+                  <tr><th>센터</th><td style="text-align:left; padding-left:8px;">이천센터</td></tr>
+                </table>
+              </div>
+              <div class="info-box-right">
+                <table>
+                  <tr><th class="nowrap">보관관리담당</th><th class="nowrap">출고관리담당</th><th class="nowrap">운송관리담당</th><th class="nowrap">배송기사</th></tr>
+                  <tr>
+                    <td style="height:30px;"><span class="sign-text">성명 (서명)</span></td>
+                    <td><span class="sign-text">성명 (서명)</span></td>
+                    <td><span class="sign-text">성명 (서명)</span></td>
+                    <td style="font-weight:bold; font-size:10.5px;">${data.driverName} (서명)</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+
+            <div class="info-boxes">
+              <div class="info-box-left">
+                <table>
+                  <tr><th rowspan="3" style="width:25%">주행거리</th><th style="width:40%">물류창고 출발 시</th><td style="text-align:right; padding-right:8px;" class="nowrap">${data.startKm ? data.startKm + ' km' : ''}</td></tr>
+                  <tr><th>배송완료 시</th><td style="text-align:right; padding-right:8px;" class="nowrap"> km</td></tr>
+                  <tr><th>물류창고 도착 시</th><td style="text-align:right; padding-right:8px;" class="nowrap">${data.endKm ? data.endKm + ' km' : ''}</td></tr>
+                </table>
+              </div>
+              <div class="info-box-right">
+                <table>
+                  <tr>
+                    <th rowspan="2" style="width:20%">차량<br>안전점검</th>
+                    <th style="width:35%" class="nowrap">물류창고 출발 전</th><td style="width:15%"></td>
+                    <th style="width:30%" class="nowrap">배송안전교육</th>
+                  </tr>
+                  <tr>
+                    <th class="nowrap">물류창고 복귀 후</th><td></td>
+                    <td><span class="sign-text">성명 (서명)</span></td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr><th style="width:5%">No</th><th style="width:30%">거 래 처 명</th><th style="width:10%" class="nowrap">박스 수</th><th style="width:15%" class="nowrap">도착시간</th><th style="width:40%">비고</th></tr>
+              </thead>
+              <tbody>
+        `;
+
+        let totalBoxes = 0;
+        for (let i = 1; i <= 31; i++) {
+          let client = data.clients[i - 1];
+          if (client) {
+            totalBoxes += client.boxCount;
+            html += `<tr><td>${i}</td><td style="text-align:left; padding-left:8px; font-size:9.5px;">${client.name}</td><td style="font-size:9.5px;">${client.boxCount}</td><td style="font-size:9.5px;">${client.arrTime}</td><td></td></tr>`;
+          } else {
+            html += `<tr><td>${i}</td><td></td><td></td><td></td><td></td></tr>`;
+          }
+        }
+
+        html += `
+                <tr><td></td><td style="text-align:center; font-weight:bold; background-color:#f2f2f2 !important; -webkit-print-color-adjust: exact; font-size:11px;">박스 총 개수</td><td style="font-weight:bold; font-size:11px;">${totalBoxes}</td><td></td><td></td></tr>
+              </tbody>
+            </table>
+            
+            <div style="text-align:center; font-size:10px;">1</div>
+          </div>
+        `;
+      });
+
+      html += `</body></html>`;
 
       printWin.document.write(html);
       printWin.document.close();

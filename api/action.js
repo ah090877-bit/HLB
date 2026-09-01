@@ -71,7 +71,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 🌟 3. 기사 배차 조회 (다중 호차 완벽 지원 로직으로 교체)
+    // 3. 기사 배차 조회
     if (action === 'getDriverDispatch') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -102,7 +102,7 @@ export default async function handler(req, res) {
           let v = String(row[5]);
           if (String(row[6]).substring(0, 10) === dateString && assignedVehicles.includes(v)) {
             let clientName = String(row[3]);
-            let key = v + "_" + clientName; // 호차별로 거래처를 분리
+            let key = v + "_" + clientName;
             let orderSeq = String(row[9]);
             let prodStr = `${row[2]}(${row[1]}개)`;
             
@@ -132,23 +132,19 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: `${prefix}_배차리스트 데이터 조회에 실패했습니다.` }); }
     }
 
-    // 🌟 4. 도착 시간 기록 (다중 호차 인식)
+    // 🌟 4. 도착 시간 기록 (현재 선택된 호차만 정확히 업데이트 하도록 격리 처리)
     if (action === 'recordArrivalTime') {
       const prefix = formatYYMM(body.targetDate);
       try {
         const response = await sheets.spreadsheets.values.batchGet({
           spreadsheetId: SPREADSHEET_ID, ranges: ['Users!A2:G', `${prefix}_호차배정!A2:D`, `${prefix}_배차리스트!A2:K`],
         });
+        
         let fullPhone = "";
         for (let row of (response.data.valueRanges[0].values || [])) { if (String(row[2]) === String(body.driverId)) { fullPhone = String(row[3]).replace(/[-']/g, ''); break; } }
-        const dateString = body.targetDate.substring(0, 10);
         
-        let assignedVehicles = [];
-        for (let row of (response.data.valueRanges[1].values || [])) {
-          if (String(row[0]).substring(0, 10) === dateString && String(row[3]).replace(/[-']/g, '') === fullPhone) { 
-             if(!assignedVehicles.includes(row[1])) assignedVehicles.push(row[1]);
-          }
-        }
+        const dateString = body.targetDate.substring(0, 10);
+        const targetVehicle = body.vehicle; // 프론트에서 넘겨받은 꼬리표(선택된 호차)
 
         const dispatchData = response.data.valueRanges[2].values || [];
         const seqArray = String(body.orderSeq).split(',').map(s => s.trim()); 
@@ -158,7 +154,8 @@ export default async function handler(req, res) {
         for (let i = 0; i < dispatchData.length; i++) {
           let row = dispatchData[i];
           if(!row[6]) continue;
-          if (String(row[6]).substring(0, 10) === dateString && assignedVehicles.includes(String(row[5])) && seqArray.includes(String(row[9]))) {
+          // 🌟 배정된 여러 호차가 아니라, '누른 바로 그 호차'일 때만 업데이트
+          if (String(row[6]).substring(0, 10) === dateString && String(row[5]) === targetVehicle && seqArray.includes(String(row[9]))) {
             await sheets.spreadsheets.values.update({
               spreadsheetId: SPREADSHEET_ID, range: `${prefix}_배차리스트!K${i + 2}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[timeStr]] }
             });
@@ -276,9 +273,10 @@ export default async function handler(req, res) {
       } catch (e) { return res.status(200).json({ success: true, data: [] }); }
     }
 
-    // 7. 사진 삭제
+    // 7. 사진 삭제 
     if (action === 'deleteDriverPhoto') {
       try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) }); } catch (e) {}
+      
       const prefix = formatYYMM(body.dateKey); 
       try {
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_Photos!A1:G` });

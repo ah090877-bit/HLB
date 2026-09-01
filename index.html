@@ -320,9 +320,9 @@
     let compulsoryChangeId = ''; 
     let currentStatusFilter = 'all';
 
-    // 🌟 다중 호차를 위한 기사 전용 글로벌 변수
     let currentDriverDispatch = [];
     let currentAssignedVehicles = [];
+    let lastSelectedVehicle = null;
 
     let chartDailyIns, chartHospitalIns, chartVehicleIns;
 
@@ -441,9 +441,6 @@
       el.style.display = el.style.display === 'none' ? 'block' : 'none';
     }
 
-    // 🌟 다중 호차를 완벽하게 분리하여 보여주는 기사 배차 렌더링 로직
-    let lastSelectedVehicle = null;
-
     function loadDispatchList() {
       if (document.getElementById('driverVehicleSelect')) {
           lastSelectedVehicle = document.getElementById('driverVehicleSelect').value;
@@ -460,7 +457,6 @@
             currentDriverDispatch = res.data;
             currentAssignedVehicles = res.vehicle.split(',').map(s => s.trim());
 
-            // 여러 호차일 경우 드롭다운(select) 생성
             if (currentAssignedVehicles.length > 1) {
               document.getElementById('vehicleDisplay').innerHTML = `
                 <select id="driverVehicleSelect" onchange="renderDriverDispatch()" style="margin-left: 5px; padding: 3px 8px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; border: 1px solid #1a73e8; color: #1a73e8; background: #fff; cursor:pointer;">
@@ -491,15 +487,16 @@
 
       let html = '';
       currentDriverDispatch.forEach(item => {
-        if (item.vehicle !== selectedVehicle) return; // 🌟 드롭다운에서 선택된 호차만 화면에 렌더링
+        if (item.vehicle !== selectedVehicle) return; 
 
         let displaySeq = String(item.orderSeq).split(',')[0].trim(); 
         let cleanId = String(item.orderSeq).replace(/,/g, '').replace(/\s/g, '') + "_" + item.vehicle;
         let displayClientName = item.clientName.replace(/\s*\(\d+ea\)/gi, '').trim();
         
+        // 🌟 꼬리표(호차) 데이터를 백엔드로 넘기기 위해 markArrival 함수 호출 인자 추가 (item.vehicle)
         let btn = item.arrivalTime 
           ? `<div class="arrival-done">✓ 도착 ${item.arrivalTime}</div>` 
-          : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}')">거래처 도착</button>`;
+          : `<button class="btn-arrival" onclick="markArrival('${item.orderNum}', '${item.orderSeq}', '${item.vehicle}')">거래처 도착</button>`;
         
         let remarksColor = (item.remarks && item.remarks !== '-' && item.remarks.trim() !== '') ? '#ef4444' : '#64748b';
         let cleanPhoneNum = item.clientPhone.replace(/[^0-9]/g, '');
@@ -529,9 +526,10 @@
       container.innerHTML = html;
     }
 
-    function markArrival(orderNum, orderSeq) {
+    // 🌟 vehicle(호차) 인자를 받아서 백엔드로 전달
+    function markArrival(orderNum, orderSeq, vehicle) {
       showCustomAlert("현재 시간으로 도착을 기록하시겠습니까?", () => {
-        callGasApi('recordArrivalTime', { driverId: localStorage.getItem('currentUser'), targetDate: document.getElementById('masterDate').value, orderNum, orderSeq }).then(res => {
+        callGasApi('recordArrivalTime', { driverId: localStorage.getItem('currentUser'), targetDate: document.getElementById('masterDate').value, orderNum, orderSeq, vehicle: vehicle }).then(res => {
           if(res.success) loadDispatchList();
           else showCustomAlert(res.message);
         });
@@ -551,7 +549,6 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
-          // 화질/해상도 1000px, 70% 최적화 (가장 안정적)
           if (w > 1000) { h *= 1000/w; w = 1000; }
           canvas.width = w; canvas.height = h;
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -839,7 +836,6 @@
       });
     }
 
-    // 🌟 일지 출력 렌더링 (전체 출력 버튼 삭제 원상복구 반영)
     function loadReportList() {
       const targetDate = document.getElementById('reportDate').value;
       if(!targetDate) return;

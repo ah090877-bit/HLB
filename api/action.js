@@ -42,7 +42,6 @@ export default async function handler(req, res) {
     
     const SPREADSHEET_ID = '1xcCTfZu6i7eGhha1IOh0kdNWW1ZDweEFNXh25PJf2O8';
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
-    // 🌟 안정성이 검증된 선생님의 GAS 웹앱 URL
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyppHv-1YCsvplSP7TOoS5q0djhye9-1oBFx-jJDZM0B9vZi2wI6s7GRpPK_d_E0g-Z/exec";
 
     // 1. 로그인
@@ -72,7 +71,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사 배차 조회
+    // 🌟 3. 기사 배차 조회 (다중 호차 완벽 지원 로직으로 교체)
     if (action === 'getDriverDispatch') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -86,47 +85,54 @@ export default async function handler(req, res) {
         let fullPhone = "";
         for (let row of usersData) { if (String(row[2]) === String(body.driverId)) { fullPhone = String(row[3]).replace(/[-']/g, ''); break; } }
         const dateString = body.targetDate.substring(0, 10);
-        let assignedVehicle = "";
+        
+        let assignedVehicles = [];
         for (let row of assignData) {
           if(!row[0]) continue;
-          if (String(row[0]).substring(0, 10) === dateString && String(row[3]).replace(/[-']/g, '') === fullPhone) { assignedVehicle = row[1]; break; }
+          if (String(row[0]).substring(0, 10) === dateString && String(row[3]).replace(/[-']/g, '') === fullPhone) { 
+            if(!assignedVehicles.includes(row[1])) assignedVehicles.push(row[1]); 
+          }
         }
-        if (!assignedVehicle) return res.status(200).json({ success: true, data: [], message: '금일 배정된 호차가 없습니다.' });
+        
+        if (assignedVehicles.length === 0) return res.status(200).json({ success: true, data: [], message: '금일 배정된 호차가 없습니다.', vehicle: '' });
 
         let grouped = {};
         for (let row of dispatchData) {
           if(!row[6]) continue;
-          if (String(row[6]).substring(0, 10) === dateString && String(row[5]) === assignedVehicle) {
+          let v = String(row[5]);
+          if (String(row[6]).substring(0, 10) === dateString && assignedVehicles.includes(v)) {
             let clientName = String(row[3]);
+            let key = v + "_" + clientName; // 호차별로 거래처를 분리
             let orderSeq = String(row[9]);
             let prodStr = `${row[2]}(${row[1]}개)`;
             
-            if (!grouped[clientName]) {
-              grouped[clientName] = {
-                orderSeq: orderSeq, clientName: clientName, clientAddr: row[4], clientPhone: row[7], orderNum: row[0],
+            if (!grouped[key]) {
+              grouped[key] = {
+                vehicle: v, orderSeq: orderSeq, clientName: clientName, clientAddr: row[4], clientPhone: row[7], orderNum: row[0],
                 prodName: prodStr, qty: Number(row[1]), remarks: row[8] || '', arrivalTime: row[10] ? String(row[10]).substring(0,5) : ""
               };
             } else {
-              let seqArray = grouped[clientName].orderSeq.split(',').map(s=>s.trim());
-              if (!seqArray.includes(orderSeq) && orderSeq !== "undefined" && orderSeq !== "") { grouped[clientName].orderSeq += `, ${orderSeq}`; }
-              grouped[clientName].prodName += `, ${prodStr}`;
-              grouped[clientName].qty += Number(row[1]);
-              if (row[10]) grouped[clientName].arrivalTime = String(row[10]).substring(0,5);
+              let seqArray = grouped[key].orderSeq.split(',').map(s=>s.trim());
+              if (!seqArray.includes(orderSeq) && orderSeq !== "undefined" && orderSeq !== "") { grouped[key].orderSeq += `, ${orderSeq}`; }
+              grouped[key].prodName += `, ${prodStr}`;
+              grouped[key].qty += Number(row[1]);
+              if (row[10]) grouped[key].arrivalTime = String(row[10]).substring(0,5);
             }
           }
         }
         
         let dispatchList = Object.values(grouped);
         dispatchList.sort((a, b) => {
+            if (a.vehicle !== b.vehicle) return a.vehicle.localeCompare(b.vehicle);
             let seqA = parseInt(String(a.orderSeq).split(',')[0]) || 999;
             let seqB = parseInt(String(b.orderSeq).split(',')[0]) || 999;
             return seqA - seqB;
         });
-        return res.status(200).json({ success: true, vehicle: assignedVehicle, data: dispatchList });
+        return res.status(200).json({ success: true, vehicle: assignedVehicles.join(', '), data: dispatchList });
       } catch (err) { return res.status(200).json({ success: false, message: `${prefix}_배차리스트 데이터 조회에 실패했습니다.` }); }
     }
 
-    // 4. 도착 시간 기록
+    // 🌟 4. 도착 시간 기록 (다중 호차 인식)
     if (action === 'recordArrivalTime') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -136,9 +142,12 @@ export default async function handler(req, res) {
         let fullPhone = "";
         for (let row of (response.data.valueRanges[0].values || [])) { if (String(row[2]) === String(body.driverId)) { fullPhone = String(row[3]).replace(/[-']/g, ''); break; } }
         const dateString = body.targetDate.substring(0, 10);
-        let assignedVehicle = "";
+        
+        let assignedVehicles = [];
         for (let row of (response.data.valueRanges[1].values || [])) {
-          if (String(row[0]).substring(0, 10) === dateString && String(row[3]).replace(/[-']/g, '') === fullPhone) { assignedVehicle = row[1]; break; }
+          if (String(row[0]).substring(0, 10) === dateString && String(row[3]).replace(/[-']/g, '') === fullPhone) { 
+             if(!assignedVehicles.includes(row[1])) assignedVehicles.push(row[1]);
+          }
         }
 
         const dispatchData = response.data.valueRanges[2].values || [];
@@ -149,7 +158,7 @@ export default async function handler(req, res) {
         for (let i = 0; i < dispatchData.length; i++) {
           let row = dispatchData[i];
           if(!row[6]) continue;
-          if (String(row[6]).substring(0, 10) === dateString && String(row[5]) === assignedVehicle && seqArray.includes(String(row[9]))) {
+          if (String(row[6]).substring(0, 10) === dateString && assignedVehicles.includes(String(row[5])) && seqArray.includes(String(row[9]))) {
             await sheets.spreadsheets.values.update({
               spreadsheetId: SPREADSHEET_ID, range: `${prefix}_배차리스트!K${i + 2}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[timeStr]] }
             });
@@ -159,7 +168,7 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '기록 중 오류 발생' }); }
     }
 
-    // 🌟 5. 사진 업로드 (GAS 연동으로 원상복구 - Quota 에러 영구 해결)
+    // 5. 사진 업로드
     if (action === 'uploadDashboardPhoto') {
       try {
         const dateString = body.customDate.substring(0, 10);
@@ -193,7 +202,6 @@ export default async function handler(req, res) {
         const ext = body.fileName.substring(body.fileName.lastIndexOf('.'));
         const newFileName = `${driverName}_${body.stage}_${carNum}_${YYMMDD}_${timeStr}${ext}`;
 
-        // 🌟 다시 GAS 웹앱을 호출하여 안정적으로 업로드 처리
         const gasResponse = await fetch(GAS_WEB_APP_URL, {
           method: 'POST', body: JSON.stringify({ folderId: FOLDER_ID, fileName: newFileName, base64Data: body.base64Data, yearStr, monthStr, dayStr })
         });
@@ -268,13 +276,9 @@ export default async function handler(req, res) {
       } catch (e) { return res.status(200).json({ success: true, data: [] }); }
     }
 
-    // 7. 사진 삭제 (GAS 연동)
+    // 7. 사진 삭제
     if (action === 'deleteDriverPhoto') {
-      try { 
-        // GAS 웹앱을 호출하여 삭제
-        await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) }); 
-      } catch (e) { console.log('드라이브 파일 삭제 에러 무시'); }
-      
+      try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) }); } catch (e) {}
       const prefix = formatYYMM(body.dateKey); 
       try {
         const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_Photos!A1:G` });

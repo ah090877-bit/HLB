@@ -44,7 +44,6 @@ export default async function handler(req, res) {
     const FOLDER_ID = '12y-08UOW1srIpmFjlfaeLdbVv9ujWZRR';
     const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyppHv-1YCsvplSP7TOoS5q0djhye9-1oBFx-jJDZM0B9vZi2wI6s7GRpPK_d_E0g-Z/exec";
 
-    // 1. 로그인
     if (action === 'verifyLogin') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       const hashedPassword = hashPassword(body.password);
@@ -56,7 +55,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '아이디 또는 비밀번호가 일치하지 않습니다.' });
     }
 
-    // 2. 비밀번호 변경
     if (action === 'changePassword') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       const rows = response.data.values || [];
@@ -71,7 +69,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 3. 기사 배차 조회
     if (action === 'getDriverDispatch') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -132,7 +129,6 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: `${prefix}_배차리스트 데이터 조회에 실패했습니다.` }); }
     }
 
-    // 🌟 4. 도착 시간 기록 (현재 선택된 호차만 정확히 업데이트 하도록 격리 처리)
     if (action === 'recordArrivalTime') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -144,7 +140,7 @@ export default async function handler(req, res) {
         for (let row of (response.data.valueRanges[0].values || [])) { if (String(row[2]) === String(body.driverId)) { fullPhone = String(row[3]).replace(/[-']/g, ''); break; } }
         
         const dateString = body.targetDate.substring(0, 10);
-        const targetVehicle = body.vehicle; // 프론트에서 넘겨받은 꼬리표(선택된 호차)
+        const targetVehicle = body.vehicle; 
 
         const dispatchData = response.data.valueRanges[2].values || [];
         const seqArray = String(body.orderSeq).split(',').map(s => s.trim()); 
@@ -154,7 +150,6 @@ export default async function handler(req, res) {
         for (let i = 0; i < dispatchData.length; i++) {
           let row = dispatchData[i];
           if(!row[6]) continue;
-          // 🌟 배정된 여러 호차가 아니라, '누른 바로 그 호차'일 때만 업데이트
           if (String(row[6]).substring(0, 10) === dateString && String(row[5]) === targetVehicle && seqArray.includes(String(row[9]))) {
             await sheets.spreadsheets.values.update({
               spreadsheetId: SPREADSHEET_ID, range: `${prefix}_배차리스트!K${i + 2}`, valueInputOption: 'USER_ENTERED', requestBody: { values: [[timeStr]] }
@@ -165,7 +160,6 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '기록 중 오류 발생' }); }
     }
 
-    // 5. 사진 업로드
     if (action === 'uploadDashboardPhoto') {
       try {
         const dateString = body.customDate.substring(0, 10);
@@ -254,7 +248,6 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: `서버 전송 오류: ${err.message}` }); }
     }
 
-    // 6. 사진 조회 
     if (action === 'getDriverPhotos') {
       const prefix = formatYYMM(body.targetMonth); 
       try {
@@ -273,7 +266,6 @@ export default async function handler(req, res) {
       } catch (e) { return res.status(200).json({ success: true, data: [] }); }
     }
 
-    // 7. 사진 삭제 
     if (action === 'deleteDriverPhoto') {
       try { await fetch(GAS_WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'delete', fileId: body.fileId }) }); } catch (e) {}
       
@@ -292,7 +284,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 8. 당일 모니터링
     if (action === 'getAdminDailyStatus') {
       const prefix = formatYYMM(body.targetDate);
       try {
@@ -330,10 +321,10 @@ export default async function handler(req, res) {
       } catch (err) { return res.status(200).json({ success: false, message: '데이터 조회 실패' }); }
     }
 
-    // 9. 월별 통계 분석
+    // 🌟 9. 월별 통계 분석 (무거운 차트 제거 및 초고속 O(N) 해시맵 엔진으로 전면 개편 - 프리징 완벽 해결)
     if (action === 'getAdminMonthlyStats') {
       const prefix = formatYYMM(body.targetMonth);
-      let dispatch = [], users = [], assign = [], mileageRows = [];
+      let dispatch = [], users = [], assign = [];
       try {
         const resMain = await sheets.spreadsheets.values.batchGet({
           spreadsheetId: SPREADSHEET_ID, ranges: [`${prefix}_배차리스트!A2:K`, 'Users!A2:G', `${prefix}_호차배정!A2:D`],
@@ -343,79 +334,79 @@ export default async function handler(req, res) {
         assign = resMain.data.valueRanges[2].values || [];
       } catch (err) { return res.status(200).json({ success: false, message: `${prefix}_배차 데이터가 없습니다.` }); }
 
-      try {
-        const mRes = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: `${prefix}_운행거리!A2:H` });
-        mileageRows = mRes.data.values || [];
-      } catch(e) {} 
-
-      let statsObj = {}, hospitalStats = {}, driverStats = {};
-      const timeToMins = (t) => { if(!t || !t.includes(':')) return 0; const [h, m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
-
-      for (let r of mileageRows) {
-        let dName = String(r[1]);
-        let finalKm = parseInt(r[7]) || 0;
-        if (!driverStats[dName]) driverStats[dName] = { count: 0, clients: new Set(), endTimes: [], totalKm: 0 };
-        driverStats[dName].totalKm += finalKm;
+      let userMap = {};
+      for (let u of users) {
+        if(u[3]) userMap[String(u[3]).replace(/[-']/g, '')] = u[1];
       }
+
+      let assignMap = {};
+      for (let a of assign) {
+        if(!a[0] || !a[1] || !a[3]) continue;
+        let d = String(a[0]).substring(0, 10);
+        let p = String(a[3]).replace(/[-']/g, '');
+        if (userMap[p]) assignMap[d + "_" + String(a[1])] = userMap[p];
+      }
+
+      let driverDaily = {}; 
+      const timeToMins = (t) => { if(!t || !t.includes(':')) return -1; const [h, m] = t.split(':'); return parseInt(h)*60 + parseInt(m); };
 
       for (let row of dispatch) {
         if(!row[6]) continue;
         let dateKey = String(row[6]).substring(0, 10);
         if(!dateKey.startsWith(body.targetMonth)) continue;
         
-        let vehicle = String(row[5]);
-        let client = String(row[3]);
-        let arrTime = row[10] || null;
+        let driverName = assignMap[dateKey + "_" + String(row[5])];
+        if (!driverName) continue;
 
-        if(!statsObj[dateKey]) statsObj[dateKey] = { date: dateKey, vehicles: new Set(), total: 0, done: 0 };
-        statsObj[dateKey].vehicles.add(vehicle);
-        statsObj[dateKey].total++;
-        if(arrTime) statsObj[dateKey].done++;
+        if(!driverDaily[driverName]) driverDaily[driverName] = {};
+        if(!driverDaily[driverName][dateKey]) driverDaily[driverName][dateKey] = { times: [], count: 0 };
+        
+        driverDaily[driverName][dateKey].count++;
+        let m = timeToMins(row[10]);
+        if (m !== -1) driverDaily[driverName][dateKey].times.push(m);
+      }
 
-        if(!hospitalStats[client]) hospitalStats[client] = { count: 0, arrTimes: [] };
-        hospitalStats[client].count++;
-        if(arrTime) hospitalStats[client].arrTimes.push(timeToMins(arrTime));
+      let driverData = [];
+      for(let dName in driverDaily) {
+        let totalCount = 0;
+        let firstMins = 0, firstDays = 0;
+        let lastMins = 0, lastDays = 0;
+        let totalDuration = 0, validIntervals = 0;
 
-        let driverName = "미배정";
-        for (let a of assign) {
-          if (String(a[0]).substring(0, 10) === dateKey && String(a[1]) === vehicle) {
-            let aPhone = String(a[3]).replace(/[-']/g, '');
-            for (let u of users) { if (String(u[3]).replace(/[-']/g, '') === aPhone) { driverName = u[1]; break; } }
-            break;
+        for (let dt in driverDaily[dName]) {
+          let daily = driverDaily[dName][dt];
+          totalCount += daily.count;
+          if (daily.times.length > 0) {
+            daily.times.sort((a,b)=>a-b);
+            firstMins += daily.times[0]; firstDays++;
+            lastMins += daily.times[daily.times.length - 1]; lastDays++;
+            
+            if (daily.times.length > 1) {
+               totalDuration += (daily.times[daily.times.length - 1] - daily.times[0]);
+               validIntervals += (daily.times.length - 1);
+            }
           }
         }
-        if (driverName === "미배정") continue;
-        if (!driverStats[driverName]) driverStats[driverName] = { count: 0, clients: new Set(), endTimes: [], totalKm: 0 };
-        driverStats[driverName].count++;
-        driverStats[driverName].clients.add(client);
-        if (arrTime) driverStats[driverName].endTimes.push({ date: dateKey, time: timeToMins(arrTime) });
+        
+        let formatTime = (m) => {
+          if (m === 0) return "-";
+          let hh = Math.floor(m / 60); let mm = Math.floor(m % 60);
+          return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+        };
+
+        driverData.push({
+          driverName: dName,
+          totalDeliveries: totalCount,
+          avgFirst: firstDays > 0 ? formatTime(firstMins / firstDays) : "-",
+          avgLast: lastDays > 0 ? formatTime(lastMins / lastDays) : "-",
+          avgPerDelivery: validIntervals > 0 ? Math.round(totalDuration / validIntervals) + "분" : "-"
+        });
       }
 
-      let statsArray = Object.keys(statsObj).map(d => ({
-        date: d, vehicleCount: statsObj[d].vehicles.size, totalCount: statsObj[d].total,
-        doneCount: statsObj[d].done, missingCount: statsObj[d].total - statsObj[d].done
-      })).sort((a, b) => a.date.localeCompare(b.date));
-
-      let dStatsOut = [];
-      for(let d in driverStats) {
-         let eTimes = {};
-         driverStats[d].endTimes.forEach(et => { if(!eTimes[et.date] || eTimes[et.date] < et.time) eTimes[et.date] = et.time; });
-         let totalMins = 0, dayCount = 0;
-         for(let dt in eTimes) { totalMins += eTimes[dt]; dayCount++; }
-         let avgStr = dayCount > 0 ? `${String(Math.floor((totalMins/dayCount)/60)).padStart(2,'0')}:${String(Math.floor((totalMins/dayCount)%60)).padStart(2,'0')}` : "-";
-         dStatsOut.push({ driverName: d, clientCount: driverStats[d].clients.size, totalDeliveries: driverStats[d].count, avgEndTime: avgStr, totalKm: driverStats[d].totalKm });
-      }
-
-      let hStatsOut = Object.keys(hospitalStats).map(h => {
-         let tMins = hospitalStats[h].arrTimes.reduce((acc, val) => acc + val, 0);
-         let count = hospitalStats[h].arrTimes.length;
-         return { hospital: h, count: hospitalStats[h].count, avgTime: count > 0 ? `${String(Math.floor((tMins/count)/60)).padStart(2,'0')}:${String(Math.floor((tMins/count)%60)).padStart(2,'0')}` : "-" };
-      }).sort((a,b) => b.count - a.count);
-
-      return res.status(200).json({ success: true, data: statsArray, hospitalData: hStatsOut, driverData: dStatsOut });
+      driverData.sort((a,b) => b.totalDeliveries - a.totalDeliveries);
+      return res.status(200).json({ success: true, driverData });
     }
 
-    // 10. 기사 목록 조회
     if (action === 'getDriverList') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A2:G' });
       let drivers = [];
@@ -425,7 +416,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, data: drivers });
     }
 
-    // 11. 신규 기사 등록
     if (action === 'createDriverAccount') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A:G' });
       const cleanPhone = body.phone.replace(/-/g, '');
@@ -441,7 +431,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
-    // 12. 기사 비밀번호 초기화
     if (action === 'resetDriverPassword') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
       const rows = response.data.values || [];
@@ -455,7 +444,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 13. 기사 계정 삭제
     if (action === 'deleteDriverAccount') {
       const response = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range: 'Users!A1:G' });
       const rows = response.data.values || [];
@@ -470,7 +458,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
     }
 
-    // 14. 일지 출력 데이터 로드
     if (action === 'getDailyReport') {
       const prefix = formatYYMM(body.targetDate);
       const dateString = body.targetDate.substring(0, 10);
